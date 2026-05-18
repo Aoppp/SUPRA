@@ -86,14 +86,13 @@ export default function UploadPage() {
   const [searchResults, setSearchResults] = useState<AssemblyListItem[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [confirmId, setConfirmId] = useState<number | null>(null);
-  const [showFinalDialog, setShowFinalDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AssemblyListItem | null>(null);
 
   const handleCasSearch = async () => {
     if (!deleteCas.trim()) return;
     setSearching(true);
     setSearched(true);
-    setConfirmId(null);
+    setDeleteTarget(null);
     try {
       const results = await api.searchByCas(deleteCas.trim());
       setSearchResults(results);
@@ -104,21 +103,16 @@ export default function UploadPage() {
     }
   };
 
-  const handleDeleteClick = (id: number) => {
-    if (confirmId === id) {
-      setShowFinalDialog(true);
-    } else {
-      setConfirmId(id);
-    }
+  const handleDeleteClick = (item: AssemblyListItem) => {
+    setDeleteTarget(item);
   };
 
   const handleConfirmDelete = async () => {
-    if (confirmId === null) return;
+    if (!deleteTarget) return;
     try {
-      await api.deleteAssembly(confirmId);
-      setSearchResults(prev => prev.filter(r => r.id !== confirmId));
-      setConfirmId(null);
-      setShowFinalDialog(false);
+      await api.deleteAssembly(deleteTarget.id);
+      setSearchResults(prev => prev.filter(r => r.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch {
       alert('Delete failed');
     }
@@ -170,7 +164,7 @@ export default function UploadPage() {
           上传
         </button>
         <button
-          onClick={() => { setTab('delete'); setConfirmId(null); setSearched(false); setSearchResults([]); }}
+          onClick={() => { setTab('delete'); setDeleteTarget(null); setSearched(false); setSearchResults([]); }}
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
             tab === 'delete'
               ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
@@ -300,9 +294,6 @@ export default function UploadPage() {
                 <p className="text-sm text-slate-400 dark:text-slate-500">未找到匹配条目。</p>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    找到 {searchResults.length} 条结果，点击"确认删除"两次以删除。
-                  </p>
                   {searchResults.map(r => (
                     <div key={r.id}
                       className="flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded-md px-4 py-3">
@@ -312,14 +303,10 @@ export default function UploadPage() {
                         <span className="text-slate-400 dark:text-slate-500 text-xs ml-2">ID: {r.id}</span>
                       </div>
                       <button
-                        onClick={() => handleDeleteClick(r.id)}
-                        className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                          confirmId === r.id
-                            ? 'bg-red-600 text-white hover:bg-red-700'
-                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400'
-                        }`}
+                        onClick={() => handleDeleteClick(r)}
+                        className="px-3 py-1.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                       >
-                        {confirmId === r.id ? '确认删除' : '删除'}
+                        删除
                       </button>
                     </div>
                   ))}
@@ -330,17 +317,20 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* Final confirmation dialog */}
-      {showFinalDialog && (
+      {/* Confirmation dialog */}
+      {deleteTarget && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">二次确认</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              确定要删除此条目吗？此操作不可撤销。
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">警告</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+              该操作将会从数据库中删除数据（后续如果继续使用则需要重新上传），是否确认？
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mb-6">
+              {deleteTarget.name} · CAS: {deleteTarget.cas_number ?? '—'} · ID: {deleteTarget.id}
             </p>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => { setShowFinalDialog(false); setConfirmId(null); }}
+                onClick={() => setDeleteTarget(null)}
                 className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
               >
                 取消
