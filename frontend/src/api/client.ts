@@ -1,4 +1,4 @@
-import type { SearchResult, AssemblyDetail, BuildingBlock, Morphology, DrivingForce, Property, WorkProgress } from '../types';
+import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, WorkProgress } from '../types';
 
 const BASE = '/api';
 
@@ -49,6 +49,17 @@ export function createAssembly(data: Record<string, unknown>) {
 
 export function getWorkProgressList() {
   return get<WorkProgress[]>('/workbench');
+}
+
+export function deleteAssembly(id: number) {
+  return fetch(BASE + `/assemblies/${id}`, { method: 'DELETE' }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<{ ok: boolean }>;
+  });
+}
+
+export function searchByCas(cas: string) {
+  return get<AssemblyListItem[]>(`/search-by-cas?cas=${encodeURIComponent(cas)}`);
 }
 
 export function uploadWorkProgress(data: FormData) {

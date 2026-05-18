@@ -6,7 +6,7 @@ export const t = {
     siteSubtitle: 'Supramolecular Universal Platform for Research on Assemblies',
     search: 'Search',
     browse: 'Browse',
-    upload: 'Upload',
+    upload: 'Manage',
     workbench: 'Workbench',
     backToSearch: '← Back to search',
     searchTitle: 'SUPRA — Supramolecular Assembly Database',
@@ -61,7 +61,7 @@ export const t = {
     siteSubtitle: '超分子自组装体通用研究平台',
     search: '搜索',
     browse: '浏览',
-    upload: '上传',
+    upload: '管理',
     workbench: '工作台',
 
     backToSearch: '← 返回搜索',

@@ -95,6 +95,23 @@ def create_assembly(db: Session, data: AssemblyCreate):
     return a
 
 
+def search_by_cas(db: Session, cas: str):
+    """Find assemblies by CAS number partial match."""
+    from sqlalchemy.orm import joinedload
+    return (
+        db.query(Assembly)
+        .filter(Assembly.cas_number.ilike(f"%{cas}%"))
+        .options(
+            joinedload(Assembly.building_block),
+            joinedload(Assembly.morphology),
+            joinedload(Assembly.driving_forces),
+            joinedload(Assembly.properties),
+        )
+        .order_by(Assembly.id)
+        .all()
+    )
+
+
 def get_work_progress_list(db: Session):
     return db.query(WorkProgress).order_by(WorkProgress.created_at.desc()).all()
 

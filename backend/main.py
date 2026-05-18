@@ -88,6 +88,23 @@ def create_assembly(data: schemas.AssemblyCreate, db: Session = Depends(get_db))
     return crud.create_assembly(db, data)
 
 
+@app.delete("/api/assemblies/{assembly_id}")
+def delete_assembly(assembly_id: int, db: Session = Depends(get_db)):
+    a = crud.get_assembly_detail(db, assembly_id)
+    if not a:
+        raise HTTPException(status_code=404, detail="Assembly not found")
+    db.delete(a)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/search-by-cas")
+def search_by_cas(cas: str = Query(...), db: Session = Depends(get_db)):
+    """Find assemblies by CAS number (exact or partial match)."""
+    results = crud.search_by_cas(db, cas)
+    return [schemas.AssemblyListItem.model_validate(r) for r in results]
+
+
 @app.get("/api/workbench", response_model=list[schemas.WorkProgressOut])
 def list_work_progress(db: Session = Depends(get_db)):
     return crud.get_work_progress_list(db)
