@@ -69,6 +69,9 @@ def search_assemblies(db: Session, params: SearchParams):
     if params.solvent:
         query = query.filter(Assembly.solvent.ilike(f"%{params.solvent}%"))
 
+    if params.assembly_type:
+        query = query.filter(Assembly.assembly_type.ilike(f"%{params.assembly_type}%"))
+
     if params.size_min is not None:
         query = query.filter(Assembly.size_nm_min >= params.size_min)
     if params.size_max is not None:
@@ -130,5 +133,18 @@ def create_work_progress(db: Session, data: WorkProgressCreate, file_path: str |
     return wp
 
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+def delete_work_progress(db: Session, wp_id: int):
+    wp = db.query(WorkProgress).filter(WorkProgress.id == wp_id).first()
+    if not wp:
+        return False
+    if wp.file_path:
+        file_path = os.path.join(UPLOAD_DIR, os.path.basename(wp.file_path))
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    db.delete(wp)
+    db.commit()
+    return True
+
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "data", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)

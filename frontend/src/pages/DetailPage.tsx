@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as api from '../api/client';
 import type { AssemblyDetail } from '../types';
-import { useLang } from '../i18n/LanguageContext';
+import { useLang } from '../context/LanguageContext';
 
 export default function DetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +20,22 @@ export default function DetailPage() {
       .finally(() => setLoading(false));
   }, [id, tr]);
 
-  if (loading) return <div className="max-w-4xl mx-auto px-4 py-8 text-slate-400 dark:text-slate-500">{tr('loading')}</div>;
+  if (loading) return (
+    <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
+      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32 mb-4" />
+      <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-2" />
+      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-6" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-5 space-y-3">
+            <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
   if (error) return <div className="max-w-4xl mx-auto px-4 py-8 text-red-500">{error}</div>;
   if (!data) return null;
 
@@ -39,7 +54,7 @@ export default function DetailPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Info */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
           <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('detailTitle')}</h2>
           <dl className="space-y-2 text-sm">
             {data.solvent && (
@@ -71,7 +86,7 @@ export default function DetailPage() {
 
         {/* Description */}
         {data.description && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
             <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('description')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{data.description}</p>
           </div>
@@ -87,7 +102,7 @@ export default function DetailPage() {
 
         {/* Building Block */}
         {data.building_block && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
             <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('buildingBlockSection')}</h2>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -118,7 +133,7 @@ export default function DetailPage() {
 
         {/* Characterization Method */}
         {data.characterization_method && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
             <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('characterizationMethod')}</h2>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -136,7 +151,7 @@ export default function DetailPage() {
         )}
 
         {/* Driving Forces */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
           <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">
             {tr('drivingForcesSection')} ({data.driving_forces.length})
           </h2>

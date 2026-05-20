@@ -11,7 +11,7 @@ dist/
 *.db
 
 # Uploads
-backend/uploads/
+backend/data/uploads/
 
 # IDE
 .idea/

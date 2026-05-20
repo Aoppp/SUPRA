@@ -1,5 +1,5 @@
 import { Link, Outlet } from 'react-router-dom';
-import { useLang } from '../i18n/LanguageContext';
+import { useLang } from '../context/LanguageContext';
 import LanguageToggle from './LanguageToggle';
 import ThemeToggle from './ThemeToggle';
 
@@ -14,16 +14,16 @@ export default function Layout() {
             {tr('siteTitle')}
           </Link>
           <nav className="flex gap-4 text-sm items-center">
-            <Link to="/" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors">
+            <Link to="/" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
               {tr('search')}
             </Link>
-            <Link to="/browse" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors">
+            <Link to="/browse" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
               {tr('browse')}
             </Link>
-            <Link to="/upload" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors">
+            <Link to="/upload" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
               {tr('upload')}
             </Link>
-            <Link to="/workbench" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors">
+            <Link to="/workbench" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
               {tr('workbench')}
             </Link>
             <ThemeToggle />

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import * as api from '../api/client';
 import type { BuildingBlock, Morphology, DrivingForce, Property, SearchResult } from '../types';
-import { useLang } from '../i18n/LanguageContext';
+import { useLang } from '../context/LanguageContext';
 
 export default function SearchPage() {
   const { tr } = useLang();
@@ -18,6 +18,7 @@ export default function SearchPage() {
   const [drivingForce, setDrivingForce] = useState('');
   const [property, setProperty] = useState('');
   const [solvent, setSolvent] = useState('');
+  const [assemblyType, setAssemblyType] = useState('');
   const [sizeMin, setSizeMin] = useState('');
   const [sizeMax, setSizeMax] = useState('');
   const [page, setPage] = useState(1);
@@ -43,6 +44,7 @@ export default function SearchPage() {
         driving_force: drivingForce || undefined,
         property: property || undefined,
         solvent: solvent || undefined,
+        assembly_type: assemblyType || undefined,
         size_min: sizeMin ? Number(sizeMin) : undefined,
         size_max: sizeMax ? Number(sizeMax) : undefined,
         page: pageNum,
@@ -53,7 +55,7 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [name, buildingBlock, morphology, drivingForce, property, solvent, sizeMin, sizeMax]);
+  }, [name, buildingBlock, morphology, drivingForce, property, solvent, assemblyType, sizeMin, sizeMax]);
 
   useEffect(() => { doSearch(1); }, []);
 
@@ -72,7 +74,7 @@ export default function SearchPage() {
             <input
               type="text" value={name} onChange={e => setName(e.target.value)}
               placeholder="e.g., Fmoc-FF hydrogel"
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             />
           </label>
 
@@ -81,7 +83,7 @@ export default function SearchPage() {
             <select
               value={buildingBlock}
               onChange={e => setBuildingBlock(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
             >
               <option value="">{tr('allBuildingBlocks')}</option>
               {bbList.map(b => (
@@ -95,7 +97,7 @@ export default function SearchPage() {
             <select
               value={morphology}
               onChange={e => setMorphology(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
             >
               <option value="">{tr('allMorphologies')}</option>
               {morphList.map(m => (
@@ -109,7 +111,7 @@ export default function SearchPage() {
             <select
               value={drivingForce}
               onChange={e => setDrivingForce(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
             >
               <option value="">{tr('allDrivingForces')}</option>
               {dfList.map(d => (
@@ -123,7 +125,7 @@ export default function SearchPage() {
             <select
               value={property}
               onChange={e => setProperty(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
             >
               <option value="">{tr('allProperties')}</option>
               {propList.map(p => (
@@ -137,7 +139,16 @@ export default function SearchPage() {
             <input
               type="text" value={solvent} onChange={e => setSolvent(e.target.value)}
               placeholder="e.g., Water"
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('assemblyTypeCol')}</span>
+            <input
+              type="text" value={assemblyType} onChange={e => setAssemblyType(e.target.value)}
+              placeholder="e.g., Self-assembly; Hydrogel"
+              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             />
           </label>
 
@@ -169,6 +180,22 @@ export default function SearchPage() {
         </button>
       </div>
 
+      {loading && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto animate-pulse">
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="flex gap-4">
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/6" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/6" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/5" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/5" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {result && (
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -177,13 +204,14 @@ export default function SearchPage() {
           </p>
 
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
-            <table className="w-full text-sm min-w-[1100px]">
+            <table className="w-full text-sm min-w-[1200px]">
               <thead className="bg-slate-50 dark:bg-slate-700/50 border-b dark:border-slate-700">
                 <tr>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('nameCol')}</th>
                   <th className="text-center px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('compoundImageCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('casCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('assemblyTypeCol')}</th>
+                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('solventCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('drivingForceCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('morphologyCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('particleSizeCol')}</th>
@@ -193,7 +221,7 @@ export default function SearchPage() {
               </thead>
               <tbody>
                 {result.results.map(a => (
-                  <tr key={a.id} className="border-b last:border-0 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <tr key={a.id} className="border-b last:border-0 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
                     <td className="px-3 py-3">
                       <Link to={`/assembly/${a.id}`} className="text-blue-600 hover:underline font-medium">
                         {a.name}
@@ -212,6 +240,7 @@ export default function SearchPage() {
                     </td>
                     <td className="px-3 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs whitespace-nowrap">{a.cas_number ?? '-'}</td>
                     <td className="px-3 py-3 text-slate-600 dark:text-slate-400 text-xs whitespace-normal min-w-[140px]">{a.assembly_type ?? '-'}</td>
+                    <td className="px-3 py-3 text-slate-600 dark:text-slate-400 text-xs whitespace-nowrap">{a.solvent ?? '-'}</td>
                     <td className="px-3 py-3">
                       {a.driving_forces.length > 0
                         ? a.driving_forces.map(df => (
@@ -247,7 +276,14 @@ export default function SearchPage() {
                   </tr>
                 ))}
                 {result.results.length === 0 && (
-                  <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">{tr('noResults')}</td></tr>
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center">
+                      <p className="text-slate-400 dark:text-slate-500 text-sm mb-2">{tr('noResults')}</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-xs">
+                        {tr('noResultsHint') ?? 'Try adjusting your search terms or filters.'}
+                      </p>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

@@ -36,6 +36,7 @@ def search(
     driving_force: Optional[str] = Query(None),
     property: Optional[str] = Query(None),
     solvent: Optional[str] = Query(None),
+    assembly_type: Optional[str] = Query(None),
     size_min: Optional[float] = Query(None),
     size_max: Optional[float] = Query(None),
     page: int = Query(1, ge=1),
@@ -45,6 +46,7 @@ def search(
     params = schemas.SearchParams(
         name=name, building_block=building_block, morphology=morphology,
         driving_force=driving_force, property=property, solvent=solvent,
+        assembly_type=assembly_type,
         size_min=size_min, size_max=size_max,
         page=page, page_size=page_size,
     )
@@ -135,6 +137,14 @@ async def upload_work_progress(
         description=description,
     )
     return crud.create_work_progress(db, data, file_path)
+
+
+@app.delete("/api/workbench/{wp_id}")
+def delete_work_progress(wp_id: int, db: Session = Depends(get_db)):
+    ok = crud.delete_work_progress(db, wp_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Work progress entry not found")
+    return {"ok": True}
 
 
 # Serve uploaded files

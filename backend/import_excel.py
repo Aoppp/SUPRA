@@ -1,11 +1,12 @@
 """Import data from 超分子数据收集2.0_自组装.xlsx into the SUPRA database."""
+import os
 import re
 import sys
 import openpyxl
 from database import engine, Base, get_db
 from models import Assembly, BuildingBlock, DrivingForce, Morphology, Property
 
-EXCEL_PATH = "/Users/ao/Desktop/web_dev/超分子数据收集2.0_自组装.xlsx"
+EXCEL_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "超分子数据收集2.0_自组装.xlsx")
 
 
 def get_or_create(db, model, **kwargs):

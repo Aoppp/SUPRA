@@ -1,4 +1,4 @@
-import { useTheme } from '../i18n/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
@@ -6,7 +6,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-1.5 rounded text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
+      className="p-1.5 rounded text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors cursor-pointer"
       title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
     >
       {theme === 'light' ? (

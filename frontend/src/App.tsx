@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { LanguageProvider } from './i18n/LanguageContext';
-import { ThemeProvider } from './i18n/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import SearchPage from './pages/SearchPage';
 import DetailPage from './pages/DetailPage';

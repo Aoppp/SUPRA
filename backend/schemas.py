@@ -47,6 +47,7 @@ class AssemblyListItem(BaseModel):
     cas_number: Optional[str] = None
     assembly_type: Optional[str] = None
     particle_size: Optional[str] = None
+    solvent: Optional[str] = None
     doi: Optional[str] = None
     building_block: Optional[BuildingBlockOut] = None
     morphology: Optional[MorphologyOut] = None
@@ -91,6 +92,7 @@ class SearchParams(BaseModel):
     driving_force: Optional[str] = None
     property: Optional[str] = None
     solvent: Optional[str] = None
+    assembly_type: Optional[str] = None
     size_min: Optional[float] = None
     size_max: Optional[float] = None
     page: int = 1

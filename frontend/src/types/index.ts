@@ -37,6 +37,7 @@ export interface AssemblyListItem {
   cas_number?: string;
   assembly_type?: string;
   particle_size?: string;
+  solvent?: string;
   doi?: string;
   building_block?: BuildingBlock;
   morphology?: Morphology;

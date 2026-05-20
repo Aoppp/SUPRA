@@ -118,7 +118,7 @@ export default function UploadPage() {
     }
   };
 
-  const inputCls = "mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200";
+  const inputCls = "mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors";
   const labelCls = "block text-sm font-medium text-slate-600 dark:text-slate-400 mb-4";
 
   // --- Password gate ---
@@ -139,7 +139,7 @@ export default function UploadPage() {
           />
           {pwdError && <p className="text-red-500 text-xs mb-3">Incorrect password.</p>}
           <button onClick={handleLogin}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer">
             Unlock
           </button>
         </div>
@@ -261,7 +261,7 @@ export default function UploadPage() {
                   rows={3} placeholder="Brief description of the assembly..." className={inputCls} />
               </label>
               <button onClick={handleSubmit} disabled={submitting || !name.trim()}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer">
                 {submitting ? 'Submitting...' : 'Submit'}
               </button>
             </div>
@@ -283,7 +283,7 @@ export default function UploadPage() {
               className={`${inputCls} mt-0 flex-1`}
             />
             <button onClick={handleCasSearch} disabled={searching || !deleteCas.trim()}
-              className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
+              className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors cursor-pointer">
               {searching ? '搜索中...' : '搜索'}
             </button>
           </div>
@@ -304,7 +304,7 @@ export default function UploadPage() {
                       </div>
                       <button
                         onClick={() => handleDeleteClick(r)}
-                        className="px-3 py-1.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        className="px-3 py-1.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
                       >
                         删除
                       </button>
@@ -331,13 +331,13 @@ export default function UploadPage() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors cursor-pointer"
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer"
               >
                 确认删除
               </button>

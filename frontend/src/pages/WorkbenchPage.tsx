@@ -27,6 +27,7 @@ export default function WorkbenchPage() {
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WorkProgress | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchList = () => {
@@ -61,6 +62,21 @@ export default function WorkbenchPage() {
     }
   };
 
+  const handleDeleteClick = (item: WorkProgress) => {
+    setDeleteTarget(item);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.deleteWorkProgress(deleteTarget.id);
+      setEntries(prev => prev.filter(e => e.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch {
+      alert('Delete failed');
+    }
+  };
+
   const getTypeBadge = (t?: string) => {
     const colors: Record<string, string> = {
       data: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700',
@@ -72,7 +88,7 @@ export default function WorkbenchPage() {
     return <span className={`inline-block px-2 py-0.5 rounded text-xs border ${colors[t ?? 'other']}`}>{label}</span>;
   };
 
-  const inputCls = "block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200";
+  const inputCls = "block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors";
   const labelCls = "text-sm font-medium text-slate-600 dark:text-slate-400";
 
   if (!authed) {
@@ -92,7 +108,7 @@ export default function WorkbenchPage() {
           />
           {pwdError && <p className="text-red-500 text-xs mb-3">Incorrect password.</p>}
           <button onClick={handleLogin}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer">
             Unlock
           </button>
         </div>
@@ -137,7 +153,7 @@ export default function WorkbenchPage() {
           </label>
         </div>
         <button onClick={handleUpload} disabled={uploading || !personName.trim()}
-          className="mt-4 px-6 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+          className="mt-4 px-6 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors cursor-pointer">
           {uploading ? 'Uploading...' : 'Upload'}
         </button>
       </div>
@@ -153,16 +169,17 @@ export default function WorkbenchPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Description</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Time</th>
               <th className="text-center px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Download</th>
+              <th className="text-center px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Delete</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">Loading...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">Loading...</td></tr>
             ) : entries.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No entries yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No entries yet.</td></tr>
             ) : (
               entries.map(e => (
-                <tr key={e.id} className="border-b last:border-0 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                <tr key={e.id} className="border-b last:border-0 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">{e.person_name}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{e.file_name}</td>
                   <td className="px-4 py-3">{getTypeBadge(e.file_type)}</td>
@@ -176,12 +193,49 @@ export default function WorkbenchPage() {
                       </a>
                     ) : <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>}
                   </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => handleDeleteClick(e)}
+                      className="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
+                    >
+                      删除
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">警告</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+              该操作将会从工作台中删除此条目，是否确认？
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mb-6">
+              {deleteTarget.person_name} · {deleteTarget.file_name} · ID: {deleteTarget.id}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer"
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

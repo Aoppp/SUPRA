@@ -62,6 +62,13 @@ export function searchByCas(cas: string) {
   return get<AssemblyListItem[]>(`/search-by-cas?cas=${encodeURIComponent(cas)}`);
 }
 
+export function deleteWorkProgress(id: number) {
+  return fetch(BASE + `/workbench/${id}`, { method: 'DELETE' }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<{ ok: boolean }>;
+  });
+}
+
 export function uploadWorkProgress(data: FormData) {
   return fetch(BASE + '/workbench', {
     method: 'POST',

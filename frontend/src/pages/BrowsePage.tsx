@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import * as api from '../api/client';
 import type { SearchResult } from '../types';
-import { useLang } from '../i18n/LanguageContext';
+import { useLang } from '../context/LanguageContext';
 
 export default function BrowsePage() {
   const { tr } = useLang();
@@ -24,7 +24,19 @@ export default function BrowsePage() {
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">{tr('browseAll')}</h1>
 
       {loading ? (
-        <p className="text-slate-400 dark:text-slate-500">{tr('loading')}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-pulse">
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="flex gap-4">
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-12" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/5" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/5" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : data ? (
         <>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -43,7 +55,7 @@ export default function BrowsePage() {
               </thead>
               <tbody>
                 {data.results.map(a => (
-                  <tr key={a.id} className="border-b last:border-0 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <tr key={a.id} className="border-b last:border-0 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
                     <td className="px-4 py-3 text-slate-400 dark:text-slate-500 tabular-nums">{a.id}</td>
                     <td className="px-4 py-3">
                       <Link to={`/assembly/${a.id}`} className="text-blue-600 hover:underline font-medium">
