@@ -51,6 +51,18 @@ export function getWorkProgressList() {
   return get<WorkProgress[]>('/workbench');
 }
 
+export function batchUploadAssemblies(file: File) {
+  const fd = new FormData();
+  fd.set('file', file);
+  return fetch(BASE + '/assemblies/batch', {
+    method: 'POST',
+    body: fd,
+  }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<{ created: number; errors: { row: number; error: string }[]; total_rows: number }>;
+  });
+}
+
 export function deleteAssembly(id: number) {
   return fetch(BASE + `/assemblies/${id}`, { method: 'DELETE' }).then(res => {
     if (!res.ok) throw new Error(`API error: ${res.status}`);

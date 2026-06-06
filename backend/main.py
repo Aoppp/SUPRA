@@ -2,12 +2,15 @@ from fastapi import FastAPI, Depends, Query, HTTPException, UploadFile, File, Fo
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import Optional
+import io
 import os
 import shutil
 from datetime import datetime
 
+import openpyxl
+
 from database import engine, Base, get_db
-from seed import seed
+
 import crud
 import schemas
 
@@ -25,7 +28,6 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
-    seed()
 
 
 @app.get("/api/search", response_model=schemas.SearchResult)
@@ -51,9 +53,13 @@ def search(
         page=page, page_size=page_size,
     )
     total, results = crud.search_assemblies(db, params)
+    items = [schemas.AssemblyListItem.model_validate(r) for r in results]
+    for item in items:
+        item.category = crud.get_category(item.id)
+        item.foodmate_url = crud.get_foodmate_url(item.id, item.name)
     return schemas.SearchResult(
         total=total, page=page, page_size=page_size,
-        results=[schemas.AssemblyListItem.model_validate(r) for r in results],
+        results=items,
     )
 
 
@@ -62,7 +68,10 @@ def get_assembly(assembly_id: int, db: Session = Depends(get_db)):
     a = crud.get_assembly_detail(db, assembly_id)
     if not a:
         raise HTTPException(status_code=404, detail="Assembly not found")
-    return a
+    result = schemas.AssemblyDetail.model_validate(a)
+    result.category = crud.get_category(result.id)
+    result.foodmate_url = crud.get_foodmate_url(result.id, result.name)
+    return result
 
 
 @app.get("/api/building-blocks", response_model=list[schemas.BuildingBlockOut])
@@ -90,6 +99,44 @@ def create_assembly(data: schemas.AssemblyCreate, db: Session = Depends(get_db))
     return crud.create_assembly(db, data)
 
 
+@app.post("/api/assemblies/batch")
+async def batch_create_assemblies(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if not file.filename or not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Please upload an Excel file (.xlsx or .xls)")
+
+    contents = await file.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contents))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to parse Excel file")
+
+    ws = wb.active
+    if ws.max_row < 2:
+        raise HTTPException(status_code=400, detail="Excel file has no data rows")
+
+    # Read header row
+    headers = {c: str(ws.cell(row=1, column=c).value or "").strip().lower().replace(" ", "_")
+               for c in range(1, ws.max_column + 1)}
+
+    # Read data rows into list of dicts
+    rows: list[dict] = []
+    for r in range(2, ws.max_row + 1):
+        row = {}
+        for c in range(1, ws.max_column + 1):
+            key = headers.get(c, f"col_{c}")
+            val = ws.cell(row=r, column=c).value
+            row[key] = str(val).strip() if val is not None else ""
+        # Skip completely empty rows
+        if any(v for v in row.values()):
+            rows.append(row)
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="No data rows found in Excel file")
+
+    created, errors = crud.batch_create_assemblies(db, rows)
+    return {"created": created, "errors": errors, "total_rows": len(rows)}
+
+
 @app.delete("/api/assemblies/{assembly_id}")
 def delete_assembly(assembly_id: int, db: Session = Depends(get_db)):
     a = crud.get_assembly_detail(db, assembly_id)
@@ -104,7 +151,11 @@ def delete_assembly(assembly_id: int, db: Session = Depends(get_db)):
 def search_by_cas(cas: str = Query(...), db: Session = Depends(get_db)):
     """Find assemblies by CAS number (exact or partial match)."""
     results = crud.search_by_cas(db, cas)
-    return [schemas.AssemblyListItem.model_validate(r) for r in results]
+    items = [schemas.AssemblyListItem.model_validate(r) for r in results]
+    for item in items:
+        item.category = crud.get_category(item.id)
+        item.foodmate_url = crud.get_foodmate_url(item.id, item.name)
+    return items
 
 
 @app.get("/api/workbench", response_model=list[schemas.WorkProgressOut])
@@ -145,6 +196,36 @@ def delete_work_progress(wp_id: int, db: Session = Depends(get_db)):
     if not ok:
         raise HTTPException(status_code=404, detail="Work progress entry not found")
     return {"ok": True}
+
+
+@app.get("/api/structure-image/{assembly_id}")
+def structure_image(assembly_id: int, db: Session = Depends(get_db)):
+    """Generate a 2D chemical structure image from SMILES using RDKit."""
+    from fastapi.responses import Response
+    a = crud.get_assembly_detail(db, assembly_id)
+    if not a or not a.smiles:
+        raise HTTPException(status_code=404, detail="No SMILES available")
+
+    try:
+        from rdkit import Chem
+        from rdkit.Chem import Draw
+        from rdkit.Chem.Draw import rdMolDraw2D
+        import io
+
+        mol = Chem.MolFromSmiles(a.smiles)
+        if mol is None:
+            raise HTTPException(status_code=404, detail="Invalid SMILES")
+
+        drawer = rdMolDraw2D.MolDraw2DCairo(300, 200)
+        opts = drawer.drawOptions()
+        opts.addStereoAnnotation = True
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        png_data = drawer.GetDrawingText()
+
+        return Response(content=png_data, media_type="image/png")
+    except ImportError:
+        raise HTTPException(status_code=500, detail="RDKit not available")
 
 
 # Serve uploaded files

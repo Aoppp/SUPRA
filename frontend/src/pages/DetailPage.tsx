@@ -45,7 +45,24 @@ export default function DetailPage() {
         {tr('backToSearch')}
       </Link>
 
-      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">{data.name}</h1>
+      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">{data.name}</h1>
+      {data.english_name && (
+        <p className="text-slate-500 dark:text-slate-400 text-sm mb-2 italic">{data.english_name}</p>
+      )}
+      {data.category && (
+        <div className="mb-4">
+          {data.foodmate_url ? (
+            <a href={data.foodmate_url} target="_blank" rel="noopener noreferrer"
+              className="inline-block px-2 py-0.5 rounded text-xs font-medium border bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 hover:underline">
+              {data.category === '食品' ? '📋 食品添加剂 (GB 2760)' : data.category === '食品和化妆品' ? '📋 食品添加剂 & 化妆品原料' : `📋 ${data.category}`} ↗
+            </a>
+          ) : (
+            <span className="inline-block px-2 py-0.5 rounded text-xs font-medium border bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700">
+              {data.category === '药品' ? '💊 药品' : data.category}
+            </span>
+          )}
+        </div>
+      )}
       {data.morphology && (
         <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
           {data.morphology.name}{data.morphology.description ? ` — ${data.morphology.description}` : ''}
@@ -57,16 +74,58 @@ export default function DetailPage() {
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
           <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('detailTitle')}</h2>
           <dl className="space-y-2 text-sm">
+            {data.cas_number && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500 dark:text-slate-400">{tr('casCol')}</dt>
+                <dd className="font-medium font-mono text-slate-800 dark:text-slate-200">{data.cas_number}</dd>
+              </div>
+            )}
+            {data.assembly_type && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500 dark:text-slate-400">{tr('assemblyTypeCol')}</dt>
+                <dd className="font-medium text-slate-800 dark:text-slate-200">{data.assembly_type}</dd>
+              </div>
+            )}
             {data.solvent && (
               <div className="flex justify-between">
                 <dt className="text-slate-500 dark:text-slate-400">{tr('solvent')}</dt>
                 <dd className="font-medium text-slate-800 dark:text-slate-200">{data.solvent}</dd>
               </div>
             )}
+            {data.solute && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500 dark:text-slate-400">{tr('solute')}</dt>
+                <dd className="font-medium text-slate-800 dark:text-slate-200">{data.solute}</dd>
+              </div>
+            )}
             {data.concentration && (
               <div className="flex justify-between">
                 <dt className="text-slate-500 dark:text-slate-400">{tr('concentration')}</dt>
                 <dd className="font-medium text-slate-800 dark:text-slate-200">{data.concentration}</dd>
+              </div>
+            )}
+            {data.assembly_temperature && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500 dark:text-slate-400">{tr('assemblyTemperature')}</dt>
+                <dd className="font-medium text-slate-800 dark:text-slate-200">{data.assembly_temperature}</dd>
+              </div>
+            )}
+            {data.ph_value && data.ph_value !== '—' && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500 dark:text-slate-400">{tr('phValue')}</dt>
+                <dd className="font-medium text-slate-800 dark:text-slate-200">{data.ph_value}</dd>
+              </div>
+            )}
+            {data.assembly_time && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500 dark:text-slate-400">{tr('assemblyTime')}</dt>
+                <dd className="font-medium text-slate-800 dark:text-slate-200">{data.assembly_time}</dd>
+              </div>
+            )}
+            {data.particle_size && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500 dark:text-slate-400">{tr('particleSizeCol')}</dt>
+                <dd className="font-medium text-slate-800 dark:text-slate-200">{data.particle_size}</dd>
               </div>
             )}
             {(data.size_nm_min != null || data.size_nm_max != null) && (
@@ -78,25 +137,59 @@ export default function DetailPage() {
             {data.doi && (
               <div className="flex justify-between">
                 <dt className="text-slate-500 dark:text-slate-400">{tr('doi')}</dt>
-                <dd className="font-medium text-slate-800 dark:text-slate-200">{data.doi}</dd>
+                <dd className="font-medium text-slate-800 dark:text-slate-200">
+                  <a href={`https://doi.org/${data.doi}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{data.doi}</a>
+                </dd>
               </div>
             )}
           </dl>
         </div>
 
+        {/* Molecular Characteristics */}
+        {data.molecular_characteristics && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
+            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('molecularCharacteristics')}</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{data.molecular_characteristics}</p>
+          </div>
+        )}
+
+        {/* SMILES */}
+        {data.smiles && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
+            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('smiles')}</h2>
+            <p className="font-mono text-xs text-slate-500 dark:text-slate-400 break-all">{data.smiles}</p>
+          </div>
+        )}
+
+        {/* Biological Activity */}
+        {data.biological_activity && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 md:col-span-2 hover:shadow-md transition-shadow">
+            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('biologicalActivity')}</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{data.biological_activity}</p>
+          </div>
+        )}
+
         {/* Description */}
         {data.description && (
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
             <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('description')}</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{data.description}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{data.description}</p>
+          </div>
+        )}
+
+        {/* Notes */}
+        {data.notes && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 md:col-span-2 hover:shadow-md transition-shadow">
+            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('notes')}</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{data.notes}</p>
           </div>
         )}
 
         {/* Preparation Method */}
         {data.preparation_method && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 md:col-span-2">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 md:col-span-2 hover:shadow-md transition-shadow">
             <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('preparationMethod')}</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{data.preparation_method}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{data.preparation_method}</p>
           </div>
         )}
 
@@ -169,8 +262,16 @@ export default function DetailPage() {
           )}
         </div>
 
+        {/* Stirring Condition */}
+        {data.stirring_condition && (
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow">
+            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">{tr('stirringCondition')}</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{data.stirring_condition}</p>
+          </div>
+        )}
+
         {/* Properties */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 md:col-span-2">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 md:col-span-2 hover:shadow-md transition-shadow">
           <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-3">
             {tr('propertiesSection')} ({data.properties.length})
           </h2>

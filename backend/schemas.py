@@ -43,34 +43,45 @@ class PropertyOut(BaseModel):
 class AssemblyListItem(BaseModel):
     id: int
     name: str
+    english_name: Optional[str] = None
     compound_image: Optional[str] = None
+    smiles: Optional[str] = None
     cas_number: Optional[str] = None
     assembly_type: Optional[str] = None
     particle_size: Optional[str] = None
     solvent: Optional[str] = None
+    solute: Optional[str] = None
+    concentration: Optional[str] = None
     doi: Optional[str] = None
     building_block: Optional[BuildingBlockOut] = None
     morphology: Optional[MorphologyOut] = None
     driving_forces: list[DrivingForceOut] = []
     properties: list[PropertyOut] = []
     description: Optional[str] = None
+    biological_activity: Optional[str] = None
+    category: Optional[str] = None  # "食品" | "化妆品" | "食品和化妆品"
+    foodmate_url: Optional[str] = None
     model_config = {"from_attributes": True}
 
 
 class AssemblyDetail(BaseModel):
     id: int
     name: str
+    english_name: Optional[str] = None
     compound_image: Optional[str] = None
+    smiles: Optional[str] = None
     cas_number: Optional[str] = None
     assembly_type: Optional[str] = None
     particle_size: Optional[str] = None
     solvent: Optional[str] = None
+    solute: Optional[str] = None
     concentration: Optional[str] = None
     preparation_method: Optional[str] = None
     size_nm_min: Optional[float] = None
     size_nm_max: Optional[float] = None
     doi: Optional[str] = None
     description: Optional[str] = None
+    biological_activity: Optional[str] = None
     assembly_temperature: Optional[str] = None
     ph_value: Optional[str] = None
     stirring_condition: Optional[str] = None
@@ -82,6 +93,8 @@ class AssemblyDetail(BaseModel):
     characterization_method: Optional[CharacterizationMethodOut] = None
     driving_forces: list[DrivingForceOut] = []
     properties: list[PropertyOut] = []
+    category: Optional[str] = None  # "食品" | "化妆品" | "食品和化妆品"
+    foodmate_url: Optional[str] = None
     model_config = {"from_attributes": True}
 
 
@@ -108,17 +121,21 @@ class SearchResult(BaseModel):
 
 class AssemblyCreate(BaseModel):
     name: str
+    english_name: Optional[str] = None
     compound_image: Optional[str] = None
+    smiles: Optional[str] = None
     cas_number: Optional[str] = None
     assembly_type: Optional[str] = None
     particle_size: Optional[str] = None
     solvent: Optional[str] = None
+    solute: Optional[str] = None
     concentration: Optional[str] = None
     preparation_method: Optional[str] = None
     size_nm_min: Optional[float] = None
     size_nm_max: Optional[float] = None
     doi: Optional[str] = None
     description: Optional[str] = None
+    biological_activity: Optional[str] = None
     assembly_temperature: Optional[str] = None
     ph_value: Optional[str] = None
     stirring_condition: Optional[str] = None

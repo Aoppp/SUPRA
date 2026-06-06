@@ -10,9 +10,17 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-slate-800 dark:text-slate-100 no-underline">
-            {tr('siteTitle')}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/" className="text-xl font-bold text-slate-800 dark:text-slate-100 no-underline shrink-0">
+              {tr('siteTitle')}
+            </Link>
+            <a href="http://www.wangshuhe.cn/" target="_blank" rel="noopener noreferrer" title="王叔和" className="ml-3">
+              <img src="/logo-wangshuhe.png" alt="王叔和" className="h-8 w-auto object-contain" />
+            </a>
+            <a href="https://www.whpu.edu.cn/" target="_blank" rel="noopener noreferrer" title="武汉轻工大学">
+              <img src="/logo-whpu.png" alt="武汉轻工大学" className="h-8 w-auto object-contain" />
+            </a>
+          </div>
           <nav className="flex gap-4 text-sm items-center">
             <Link to="/" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
               {tr('search')}

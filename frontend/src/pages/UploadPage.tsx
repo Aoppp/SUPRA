@@ -24,6 +24,7 @@ export default function UploadPage() {
 
   // --- Tabs ---
   const [tab, setTab] = useState<'upload' | 'delete'>('upload');
+  const [uploadMode, setUploadMode] = useState<'single' | 'batch'>('single');
 
   // --- Upload form ---
   const [bbList, setBbList] = useState<BuildingBlock[]>([]);
@@ -46,6 +47,11 @@ export default function UploadPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
+
+  // --- Batch upload ---
+  const [batchFile, setBatchFile] = useState<File | null>(null);
+  const [batchUploading, setBatchUploading] = useState(false);
+  const [batchResult, setBatchResult] = useState<{ created: number; errors: { row: number; error: string }[]; total_rows: number } | null>(null);
 
   useEffect(() => {
     api.getBuildingBlockList().then(setBbList);
@@ -87,6 +93,25 @@ export default function UploadPage() {
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AssemblyListItem | null>(null);
+
+  const handleBatchUpload = async () => {
+    if (!batchFile) return;
+    setBatchUploading(true);
+    setBatchResult(null);
+    try {
+      const result = await api.batchUploadAssemblies(batchFile);
+      setBatchResult(result);
+      setBatchFile(null);
+      // Reset file input
+      const input = document.getElementById('batch-file-input') as HTMLInputElement;
+      if (input) input.value = '';
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Upload failed';
+      setBatchResult({ created: 0, errors: [{ row: 0, error: msg }], total_rows: 0 });
+    } finally {
+      setBatchUploading(false);
+    }
+  };
 
   const handleCasSearch = async () => {
     if (!deleteCas.trim()) return;
@@ -178,11 +203,113 @@ export default function UploadPage() {
       {/* === Upload Tab === */}
       {tab === 'upload' && (
         <>
+          {/* Sub-mode toggle */}
+          {!success && (
+            <div className="flex gap-1 mb-4 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
+              <button
+                onClick={() => { setUploadMode('single'); setBatchResult(null); }}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  uploadMode === 'single'
+                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                单次上传
+              </button>
+              <button
+                onClick={() => { setUploadMode('batch'); setSuccess(''); }}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  uploadMode === 'batch'
+                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                批量上传
+              </button>
+            </div>
+          )}
+
+          {/* Batch result */}
+          {batchResult && (
+            <div className={`rounded-lg p-4 text-sm mb-4 ${
+              batchResult.errors.length > 0
+                ? 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300'
+                : 'bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+            }`}>
+              <p className="font-medium">批量导入完成</p>
+              <p>总行数: {batchResult.total_rows} · 成功: {batchResult.created} · 失败: {batchResult.errors.length}</p>
+              {batchResult.errors.length > 0 && (
+                <ul className="mt-2 list-disc pl-4 text-xs space-y-0.5">
+                  {batchResult.errors.slice(0, 10).map((e, i) => (
+                    <li key={i}>第 {e.row} 行: {e.error}</li>
+                  ))}
+                  {batchResult.errors.length > 10 && <li>... 还有 {batchResult.errors.length - 10} 条错误</li>}
+                </ul>
+              )}
+              <button
+                onClick={() => setBatchResult(null)}
+                className="mt-2 text-xs underline hover:no-underline"
+              >
+                关闭
+              </button>
+            </div>
+          )}
+
           {success ? (
             <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 rounded-lg p-4 text-sm">
               {success}
             </div>
+          ) : uploadMode === 'batch' ? (
+            /* === Batch Upload Form === */
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+              <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">批量上传 Excel</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                上传 .xlsx 文件，第一行为表头，每行对应一条组装体数据。
+              </p>
+
+              <details className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                <summary className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-300">支持的表头字段 (点击展开)</summary>
+                <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded grid grid-cols-2 gap-x-4 gap-y-1">
+                  <span><b>name</b> (必填)</span> <span>组装体名称</span>
+                  <span>cas_number</span> <span>CAS号</span>
+                  <span>compound_image</span> <span>化合物图片URL</span>
+                  <span>assembly_type</span> <span>组装类型</span>
+                  <span>particle_size</span> <span>粒径</span>
+                  <span>solvent</span> <span>溶剂</span>
+                  <span>concentration</span> <span>浓度</span>
+                  <span>preparation_method</span> <span>制备方法</span>
+                  <span>size_nm_min</span> <span>最小尺寸 (nm)</span>
+                  <span>size_nm_max</span> <span>最大尺寸 (nm)</span>
+                  <span>doi</span> <span>DOI</span>
+                  <span>description</span> <span>描述</span>
+                  <span>building_block</span> <span>构建基元 (名称)</span>
+                  <span>morphology</span> <span>形貌 (名称)</span>
+                  <span>driving_forces</span> <span>驱动力 (分号分隔)</span>
+                  <span>properties</span> <span>性质 (分号分隔)</span>
+                </div>
+              </details>
+
+              <label className="block mb-4">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Excel 文件 (.xlsx)</span>
+                <input
+                  id="batch-file-input"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={e => { setBatchFile(e.target.files?.[0] ?? null); setBatchResult(null); }}
+                  className={`${inputCls} mt-1 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-slate-100 dark:file:bg-slate-700 file:text-slate-700 dark:file:text-slate-300`}
+                />
+              </label>
+
+              <button
+                onClick={handleBatchUpload}
+                disabled={batchUploading || !batchFile}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                {batchUploading ? '导入中...' : '开始批量导入'}
+              </button>
+            </div>
           ) : (
+            /* === Single Upload Form === */
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className={labelCls}>

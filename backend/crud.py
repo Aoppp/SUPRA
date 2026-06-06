@@ -146,5 +146,173 @@ def delete_work_progress(db: Session, wp_id: int):
     return True
 
 
+def batch_create_assemblies(db: Session, rows: list[dict]):
+    """Create assemblies from a list of dicts (parsed from Excel rows).
+    Each dict should have keys matching Assembly fields plus:
+    - building_block: str name (lookup or create)
+    - morphology: str name (lookup or create)
+    - driving_forces: str (semicolon-separated names)
+    - properties: str (semicolon-separated names)
+    Returns (created_count, error_rows).
+    """
+    created = 0
+    errors: list[dict] = []
+
+    for i, row in enumerate(rows):
+        try:
+            name = (row.get("name") or "").strip()
+            if not name:
+                errors.append({"row": i + 1, "error": "name is required"})
+                continue
+
+            # Building block by name
+            bb = None
+            bb_name = (row.get("building_block") or "").strip()
+            if bb_name:
+                bb = db.query(BuildingBlock).filter(BuildingBlock.name == bb_name).first()
+                if not bb:
+                    bb = BuildingBlock(name=bb_name)
+                    db.add(bb)
+                    db.flush()
+
+            # Morphology by name
+            morph = None
+            morph_name = (row.get("morphology") or "").strip()
+            if morph_name:
+                morph = db.query(Morphology).filter(Morphology.name == morph_name).first()
+                if not morph:
+                    morph = Morphology(name=morph_name, description=morph_name)
+                    db.add(morph)
+                    db.flush()
+
+            # Driving forces
+            driving_forces = []
+            df_text = (row.get("driving_forces") or "").strip()
+            if df_text:
+                for df_name in _split_items(df_text):
+                    df = db.query(DrivingForce).filter(DrivingForce.name == df_name).first()
+                    if not df:
+                        df = DrivingForce(name=df_name)
+                        db.add(df)
+                        db.flush()
+                    driving_forces.append(df)
+
+            # Properties
+            properties = []
+            prop_text = (row.get("properties") or "").strip()
+            if prop_text:
+                for p_name in _split_items(prop_text):
+                    if len(p_name) > 200:
+                        p_name = p_name[:200]
+                    p = db.query(Property).filter(Property.name == p_name).first()
+                    if not p:
+                        p = Property(name=p_name)
+                        db.add(p)
+                        db.flush()
+                    properties.append(p)
+
+            # Parse size range
+            size_min = None
+            size_max = None
+            smin = row.get("size_nm_min")
+            smax = row.get("size_nm_max")
+            if smin is not None and str(smin).strip():
+                try:
+                    size_min = float(smin)
+                except ValueError:
+                    pass
+            if smax is not None and str(smax).strip():
+                try:
+                    size_max = float(smax)
+                except ValueError:
+                    pass
+
+            assembly = Assembly(
+                name=name,
+                english_name=str(row.get("english_name", "")).strip() or None,
+                compound_image=str(row.get("compound_image", "")).strip() or None,
+                smiles=str(row.get("smiles", "")).strip() or None,
+                cas_number=str(row.get("cas_number", "")).strip() or None,
+                assembly_type=str(row.get("assembly_type", "")).strip() or None,
+                particle_size=str(row.get("particle_size", "")).strip() or None,
+                solvent=str(row.get("solvent", "")).strip()[:200] or None,
+                solute=str(row.get("solute", "")).strip()[:300] or None,
+                concentration=str(row.get("concentration", "")).strip()[:200] or None,
+                preparation_method=str(row.get("preparation_method", "")).strip() or None,
+                size_nm_min=size_min,
+                size_nm_max=size_max,
+                doi=str(row.get("doi", "")).strip() or None,
+                description=str(row.get("description", "")).strip() or None,
+                biological_activity=str(row.get("biological_activity", "")).strip() or None,
+                assembly_temperature=str(row.get("assembly_temperature", "")).strip() or None,
+                ph_value=str(row.get("ph_value", "")).strip() or None,
+                stirring_condition=str(row.get("stirring_condition", "")).strip() or None,
+                assembly_time=str(row.get("assembly_time", "")).strip() or None,
+                molecular_characteristics=str(row.get("molecular_characteristics", "")).strip() or None,
+                notes=str(row.get("notes", "")).strip() or None,
+                building_block_id=bb.id if bb else None,
+                morphology_id=morph.id if morph else None,
+                driving_forces=driving_forces,
+                properties=properties,
+            )
+            db.add(assembly)
+            db.flush()
+            created += 1
+        except Exception as e:
+            errors.append({"row": i + 1, "error": str(e)})
+
+    if created > 0:
+        db.commit()
+    return created, errors
+
+
+def _split_items(text: str) -> list[str]:
+    """Split text by semicolons, newlines and clean. Returns non-empty strings."""
+    import re
+    if not text:
+        return []
+    text = text.replace("；", ";").replace("\n", ";").replace("\r", ";")
+    parts = [p.strip() for p in text.split(";") if p.strip()]
+    return [re.sub(r'^\d+[\.\、\s]+', '', p).strip() for p in parts]
+
+
+# Category lookup: 食品=GB 2760 foodmate, 化妆品=cosmetic ingredient directory
+_CATEGORY_MAP: dict[int, str] = {}
+for _fid in [6, 31, 48, 49, 52, 66]:
+    _CATEGORY_MAP[_fid] = "食品"
+for _cid in [3, 5, 6, 10, 14, 32, 48, 49, 50, 52, 62]:
+    _existing = _CATEGORY_MAP.get(_cid)
+    _CATEGORY_MAP[_cid] = "食品和化妆品" if _existing else "化妆品"
+
+
+def get_category(assembly_id: int) -> str | None:
+    cat = _CATEGORY_MAP.get(assembly_id)
+    if cat:
+        return cat
+    return "药品"
+
+
+# Foodmate GB 2760 faid mapping (same IDs as cfsa.net.cn / foodmate.net)
+_FOODMATE_FAID: dict[int, int] = {
+    6: 87,    # 姜黄素
+    31: 278,  # 皂树皮提取物 (皂树皂苷)
+    48: 49,   # 甘草酸 → 甘草酸盐
+    49: 49,   # 甘草酸 → 甘草酸盐
+    52: 253,  # 叶黄素
+    66: 229,  # 甜菊糖苷
+}
+
+
+def get_foodmate_url(assembly_id: int, name: str) -> str | None:
+    cat = _CATEGORY_MAP.get(assembly_id)
+    if cat and "食品" in cat:
+        faid = _FOODMATE_FAID.get(assembly_id)
+        if faid:
+            return f"https://2760.foodmate.net/addtives/faid/{faid}.html"
+        from urllib.parse import quote
+        return f"https://2760.foodmate.net/addtives/search?keyword={quote(name)}"
+    return None
+
+
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "data", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)

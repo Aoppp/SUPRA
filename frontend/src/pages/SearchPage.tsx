@@ -3,6 +3,21 @@ import { Link } from 'react-router-dom';
 import * as api from '../api/client';
 import type { BuildingBlock, Morphology, DrivingForce, Property, SearchResult } from '../types';
 import { useLang } from '../context/LanguageContext';
+import type { TranslationKeys } from '../context/translations';
+
+const CAT_KEY: Record<string, TranslationKeys> = {
+  '食品': 'categoryFood',
+  '化妆品': 'categoryCosmetic',
+  '食品和化妆品': 'categoryBoth',
+  '药品': 'categoryDrug',
+};
+
+const CAT_COLOR: Record<string, string> = {
+  '食品': 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700',
+  '化妆品': 'bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-700',
+  '食品和化妆品': 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700',
+  '药品': 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700',
+};
 
 export default function SearchPage() {
   const { tr } = useLang();
@@ -204,11 +219,12 @@ export default function SearchPage() {
           </p>
 
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
-            <table className="w-full text-sm min-w-[1200px]">
+            <table className="w-full text-sm min-w-[1300px]">
               <thead className="bg-slate-50 dark:bg-slate-700/50 border-b dark:border-slate-700">
                 <tr>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('nameCol')}</th>
                   <th className="text-center px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('compoundImageCol')}</th>
+                  <th className="text-center px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('categoryCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('casCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('assemblyTypeCol')}</th>
                   <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('solventCol')}</th>
@@ -234,6 +250,33 @@ export default function SearchPage() {
                           className="w-10 h-10 object-contain inline-block rounded border cursor-pointer hover:border-blue-400 hover:shadow-sm transition"
                           onClick={() => setLightbox({ src: a.compound_image!, alt: a.name })}
                         />
+                      ) : a.smiles ? (
+                        <img
+                          src={`/api/structure-image/${a.id}`}
+                          alt={a.name}
+                          className="w-10 h-10 object-contain inline-block rounded border cursor-pointer hover:border-blue-400 hover:shadow-sm transition"
+                          onError={e => {
+                            const el = e.target as HTMLImageElement;
+                            el.replaceWith(document.createTextNode('—'));
+                          }}
+                          onClick={() => setLightbox({ src: `/api/structure-image/${a.id}`, alt: a.name })}
+                        />
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {a.category ? (
+                        a.foodmate_url ? (
+                          <a href={a.foodmate_url} target="_blank" rel="noopener noreferrer"
+                            className={`inline-block px-2 py-0.5 rounded text-xs font-medium border hover:underline ${CAT_COLOR[a.category]}`}>
+                            {tr(CAT_KEY[a.category])} ↗
+                          </a>
+                        ) : (
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${CAT_COLOR[a.category]}`}>
+                            {tr(CAT_KEY[a.category])}
+                          </span>
+                        )
                       ) : (
                         <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
                       )}
@@ -277,7 +320,7 @@ export default function SearchPage() {
                 ))}
                 {result.results.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center">
+                    <td colSpan={11} className="px-4 py-12 text-center">
                       <p className="text-slate-400 dark:text-slate-500 text-sm mb-2">{tr('noResults')}</p>
                       <p className="text-slate-400 dark:text-slate-500 text-xs">
                         {tr('noResultsHint') ?? 'Try adjusting your search terms or filters.'}
