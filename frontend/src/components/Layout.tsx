@@ -10,7 +10,7 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <Link to="/" className="text-xl font-bold text-slate-800 dark:text-slate-100 no-underline shrink-0">
               {tr('siteTitle')}
             </Link>
@@ -19,6 +19,9 @@ export default function Layout() {
             </a>
             <a href="https://www.whpu.edu.cn/" target="_blank" rel="noopener noreferrer" title="武汉轻工大学">
               <img src="/logo-whpu.png" alt="武汉轻工大学" className="h-8 w-auto object-contain" />
+            </a>
+            <a href="https://www.whu.edu.cn/" target="_blank" rel="noopener noreferrer" title="武汉大学">
+              <img src="/logo-whu.png" alt="武汉大学" className="h-8 w-auto object-contain" />
             </a>
           </div>
           <nav className="flex gap-4 text-sm items-center">
@@ -42,6 +45,12 @@ export default function Layout() {
       <main className="flex-1">
         <Outlet />
       </main>
+      <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 mt-8">
+        <div className="max-w-6xl mx-auto px-4 flex justify-between items-center text-xs text-slate-400 dark:text-slate-500">
+          <span>© 2026 SAD — Supramolecular Universal Platform for Research on Assemblies</span>
+          <span>武汉轻工大学 · 王叔和生物科技</span>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as api from '../api/client';
 import type { WorkProgress } from '../types';
+import Toast from '../components/Toast';
 
 const WORKBENCH_PASSWORD = 'Chaofenzi';
 
@@ -66,14 +67,18 @@ export default function WorkbenchPage() {
     setDeleteTarget(item);
   };
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const clearToast = useCallback(() => setToast(null), []);
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
       await api.deleteWorkProgress(deleteTarget.id);
       setEntries(prev => prev.filter(e => e.id !== deleteTarget.id));
       setDeleteTarget(null);
+      setToast({ message: `"${deleteTarget.file_name}" deleted`, type: 'success' });
     } catch {
-      alert('Delete failed');
+      setToast({ message: 'Delete failed', type: 'error' });
     }
   };
 
@@ -236,6 +241,7 @@ export default function WorkbenchPage() {
           </div>
         </div>
       )}
+      {toast && <Toast message={toast.message} type={toast.type} onDone={clearToast} />}
     </div>
   );
 }

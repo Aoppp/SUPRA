@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api/client';
 import type { BuildingBlock, Morphology, AssemblyListItem } from '../types';
+import Toast from '../components/Toast';
 const ADMIN_PASSWORD = 'Chaofenzi';
 
 export default function UploadPage() {
@@ -132,14 +133,18 @@ export default function UploadPage() {
     setDeleteTarget(item);
   };
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const clearToast = useCallback(() => setToast(null), []);
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
       await api.deleteAssembly(deleteTarget.id);
       setSearchResults(prev => prev.filter(r => r.id !== deleteTarget.id));
       setDeleteTarget(null);
+      setToast({ message: `"${deleteTarget.name}" deleted`, type: 'success' });
     } catch {
-      alert('Delete failed');
+      setToast({ message: 'Delete failed', type: 'error' });
     }
   };
 
@@ -472,6 +477,7 @@ export default function UploadPage() {
           </div>
         </div>
       )}
+      {toast && <Toast message={toast.message} type={toast.type} onDone={clearToast} />}
     </div>
   );
 }

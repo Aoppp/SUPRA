@@ -1,41 +1,23 @@
 services:
-  db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: supra
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: supra
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
-
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql://supra:${POSTGRES_PASSWORD:-changeme}@db:5432/supra
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      DATABASE_URL: sqlite:///./data/dolphin.db
     volumes:
-      - uploads:/app/data/uploads
-      - images:/app/images
-      - ./data:/app/data:ro
-    depends_on:
-      - db
+      - app_data:/app/data
     restart: unless-stopped
 
   nginx:
     image: nginx:alpine
     ports:
-      - "${PORT:-80}:80"
+      - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./frontend/dist:/usr/share/nginx/html:ro
-      - uploads:/usr/share/nginx/html/uploads:ro
-      - images:/usr/share/nginx/html/images:ro
+      - app_data:/usr/share/nginx/html/uploads:ro
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
-  pgdata:
-  uploads:
-  images:
+  app_data:

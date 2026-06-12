@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session, joinedload
-from models import Assembly, BuildingBlock, DrivingForce, Morphology, CharacterizationMethod, Property, WorkProgress
+from models import Assembly, BuildingBlock, DrivingForce, Morphology, CharacterizationMethod, Property, AssemblyDriveMethod, WorkProgress
 from schemas import SearchParams, AssemblyCreate, WorkProgressCreate
 import os
+import re
 
 
 def get_building_block_list(db: Session):
@@ -20,6 +21,14 @@ def get_property_list(db: Session):
     return db.query(Property).order_by(Property.name).all()
 
 
+def get_assembly_drive_method_list(db: Session):
+    return db.query(AssemblyDriveMethod).order_by(AssemblyDriveMethod.name).all()
+
+
+def get_characterization_method_list(db: Session):
+    return db.query(CharacterizationMethod).order_by(CharacterizationMethod.name).all()
+
+
 def get_assembly_detail(db: Session, assembly_id: int):
     return (
         db.query(Assembly)
@@ -27,6 +36,7 @@ def get_assembly_detail(db: Session, assembly_id: int):
             joinedload(Assembly.building_block),
             joinedload(Assembly.morphology),
             joinedload(Assembly.characterization_method),
+            joinedload(Assembly.assembly_drive_method),
             joinedload(Assembly.driving_forces),
             joinedload(Assembly.properties),
         )
@@ -39,6 +49,7 @@ def search_assemblies(db: Session, params: SearchParams):
     query = db.query(Assembly).options(
         joinedload(Assembly.building_block),
         joinedload(Assembly.morphology),
+        joinedload(Assembly.assembly_drive_method),
         joinedload(Assembly.driving_forces),
         joinedload(Assembly.properties),
     )
@@ -66,11 +77,32 @@ def search_assemblies(db: Session, params: SearchParams):
             Property.name.ilike(f"%{params.property}%")
         )
 
-    if params.solvent:
-        query = query.filter(Assembly.solvent.ilike(f"%{params.solvent}%"))
-
     if params.assembly_type:
         query = query.filter(Assembly.assembly_type.ilike(f"%{params.assembly_type}%"))
+
+    if params.assembly_drive_method:
+        query = query.join(Assembly.assembly_drive_method).filter(
+            AssemblyDriveMethod.name.ilike(f"%{params.assembly_drive_method}%")
+        )
+
+    if params.aqueous_phase:
+        query = query.filter(Assembly.aqueous_phase.ilike(f"%{params.aqueous_phase}%"))
+
+    if params.organic_phase:
+        query = query.filter(Assembly.organic_phase.ilike(f"%{params.organic_phase}%"))
+
+    if params.is_cosmetic is not None:
+        query = query.filter(Assembly.is_cosmetic == params.is_cosmetic)
+    if params.is_drug is not None:
+        query = query.filter(Assembly.is_drug == params.is_drug)
+    if params.is_food is not None:
+        query = query.filter(Assembly.is_food == params.is_food)
+
+    if params.responsiveness:
+        query = query.filter(Assembly.responsiveness.ilike(f"%{params.responsiveness}%"))
+
+    if params.surface_modification:
+        query = query.filter(Assembly.surface_modification.ilike(f"%{params.surface_modification}%"))
 
     if params.size_min is not None:
         query = query.filter(Assembly.size_nm_min >= params.size_min)
@@ -99,20 +131,41 @@ def create_assembly(db: Session, data: AssemblyCreate):
 
 
 def search_by_cas(db: Session, cas: str):
-    """Find assemblies by CAS number partial match."""
-    from sqlalchemy.orm import joinedload
     return (
         db.query(Assembly)
         .filter(Assembly.cas_number.ilike(f"%{cas}%"))
         .options(
             joinedload(Assembly.building_block),
             joinedload(Assembly.morphology),
+            joinedload(Assembly.assembly_drive_method),
             joinedload(Assembly.driving_forces),
             joinedload(Assembly.properties),
         )
         .order_by(Assembly.id)
         .all()
     )
+
+
+def compute_category(a: Assembly) -> str | None:
+    """Compute application category from is_cosmetic/is_drug/is_food flags."""
+    cats = []
+    if a.is_food:
+        cats.append("食品")
+    if a.is_cosmetic:
+        cats.append("化妆品")
+    if a.is_drug:
+        cats.append("药品")
+    if not cats:
+        return None
+    return "、".join(cats)
+
+
+def compute_foodmate_url(a: Assembly) -> str | None:
+    """Generate foodmate.net search URL for food ingredients."""
+    if not a.is_food:
+        return None
+    from urllib.parse import quote
+    return f"https://2760.foodmate.net/addtives/search?keyword={quote(a.name)}"
 
 
 def get_work_progress_list(db: Session):
@@ -146,15 +199,50 @@ def delete_work_progress(db: Session, wp_id: int):
     return True
 
 
+def _split_items(text: str) -> list[str]:
+    """Split text by semicolons, newlines and clean. Returns non-empty strings."""
+    if not text:
+        return []
+    text = text.replace("；", ";").replace("\n", ";").replace("\r", ";")
+    parts = [p.strip() for p in text.split(";") if p.strip()]
+    cleaned = [re.sub(r'^\d+[\.\、\s]+', '', p).strip() for p in parts]
+    return [c for c in cleaned if c]
+
+
+def _parse_bool(val: str) -> bool:
+    """Parse Chinese yes/no to boolean."""
+    return val.strip() == "是"
+
+
+def _parse_size_range(size_text: str) -> tuple[float | None, float | None]:
+    """Extract min/max particle size from text. Handles: 222.0±7.57, 200–300, 50, etc."""
+    if not size_text:
+        return None, None
+    # Range with ±
+    m = re.search(r'(\d+\.?\d*)\s*±\s*(\d+\.?\d*)', size_text)
+    if m:
+        return float(m.group(1)) - float(m.group(2)), float(m.group(1)) + float(m.group(2))
+    # Range with – or -
+    m = re.search(r'(\d+\.?\d*)\s*[–\-~]\s*(\d+\.?\d*)', size_text)
+    if m:
+        return float(m.group(1)), float(m.group(2))
+    # Single number
+    m = re.search(r'(\d+\.?\d*)', size_text)
+    if m:
+        v = float(m.group(1))
+        return v, v
+    return None, None
+
+
 def batch_create_assemblies(db: Session, rows: list[dict]):
-    """Create assemblies from a list of dicts (parsed from Excel rows).
-    Each dict should have keys matching Assembly fields plus:
-    - building_block: str name (lookup or create)
-    - morphology: str name (lookup or create)
-    - driving_forces: str (semicolon-separated names)
-    - properties: str (semicolon-separated names)
+    """Create assemblies from parsed Excel rows (new 53-column format).
+    Clears existing Assembly data before import.
     Returns (created_count, error_rows).
     """
+    # Clear existing assemblies
+    db.query(Assembly).delete()
+    db.commit()
+
     created = 0
     errors: list[dict] = []
 
@@ -165,17 +253,20 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
                 errors.append({"row": i + 1, "error": "name is required"})
                 continue
 
-            # Building block by name
+            # Building block
             bb = None
             bb_name = (row.get("building_block") or "").strip()
             if bb_name:
+                # Normalize: 生物碱类→生物碱
+                if bb_name == "生物碱类":
+                    bb_name = "生物碱"
                 bb = db.query(BuildingBlock).filter(BuildingBlock.name == bb_name).first()
                 if not bb:
                     bb = BuildingBlock(name=bb_name)
                     db.add(bb)
                     db.flush()
 
-            # Morphology by name
+            # Morphology
             morph = None
             morph_name = (row.get("morphology") or "").strip()
             if morph_name:
@@ -183,6 +274,18 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
                 if not morph:
                     morph = Morphology(name=morph_name, description=morph_name)
                     db.add(morph)
+                    db.flush()
+
+            # Assembly drive method
+            drive_method = None
+            dm_name = (row.get("assembly_drive_method") or "").strip()
+            if dm_name:
+                drive_method = db.query(AssemblyDriveMethod).filter(
+                    AssemblyDriveMethod.name == dm_name
+                ).first()
+                if not drive_method:
+                    drive_method = AssemblyDriveMethod(name=dm_name)
+                    db.add(drive_method)
                     db.flush()
 
             # Driving forces
@@ -197,7 +300,7 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
                         db.flush()
                     driving_forces.append(df)
 
-            # Properties
+            # Properties (from biological activity)
             properties = []
             prop_text = (row.get("properties") or "").strip()
             if prop_text:
@@ -211,47 +314,63 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
                         db.flush()
                     properties.append(p)
 
-            # Parse size range
-            size_min = None
-            size_max = None
-            smin = row.get("size_nm_min")
-            smax = row.get("size_nm_max")
-            if smin is not None and str(smin).strip():
-                try:
-                    size_min = float(smin)
-                except ValueError:
-                    pass
-            if smax is not None and str(smax).strip():
-                try:
-                    size_max = float(smax)
-                except ValueError:
-                    pass
+            size_min, size_max = _parse_size_range(
+                row.get("particle_size", "") or ""
+            )
+
+            def _opt(k, default=None):
+                v = (row.get(k) or "").strip()
+                if not v or v == "无":
+                    return default
+                return v
+
+            def _opt_bool(k):
+                return _parse_bool(row.get(k) or "")
 
             assembly = Assembly(
                 name=name,
-                english_name=str(row.get("english_name", "")).strip() or None,
-                compound_image=str(row.get("compound_image", "")).strip() or None,
-                smiles=str(row.get("smiles", "")).strip() or None,
-                cas_number=str(row.get("cas_number", "")).strip() or None,
-                assembly_type=str(row.get("assembly_type", "")).strip() or None,
-                particle_size=str(row.get("particle_size", "")).strip() or None,
-                solvent=str(row.get("solvent", "")).strip()[:200] or None,
-                solute=str(row.get("solute", "")).strip()[:300] or None,
-                concentration=str(row.get("concentration", "")).strip()[:200] or None,
-                preparation_method=str(row.get("preparation_method", "")).strip() or None,
+                english_name=_opt("english_name"),
+                compound_image=_opt("compound_image"),
+                smiles=_opt("smiles"),
+                cas_number=_opt("cas_number"),
+                assembly_type=_opt("assembly_type"),
+                particle_size=_opt("particle_size"),
+                aqueous_phase=_opt("aqueous_phase"),
+                organic_phase=_opt("organic_phase"),
+                solute=_opt("solute"),
+                concentration=_opt("concentration"),
+                component_ratio=_opt("component_ratio"),
+                preparation_method=_opt("preparation_method"),
                 size_nm_min=size_min,
                 size_nm_max=size_max,
-                doi=str(row.get("doi", "")).strip() or None,
-                description=str(row.get("description", "")).strip() or None,
-                biological_activity=str(row.get("biological_activity", "")).strip() or None,
-                assembly_temperature=str(row.get("assembly_temperature", "")).strip() or None,
-                ph_value=str(row.get("ph_value", "")).strip() or None,
-                stirring_condition=str(row.get("stirring_condition", "")).strip() or None,
-                assembly_time=str(row.get("assembly_time", "")).strip() or None,
-                molecular_characteristics=str(row.get("molecular_characteristics", "")).strip() or None,
-                notes=str(row.get("notes", "")).strip() or None,
+                size_note=_opt("size_note"),
+                size_source=_opt("size_source"),
+                doi=_opt("doi"),
+                biological_activity=_opt("biological_activity"),
+                assembly_temperature=_opt("assembly_temperature"),
+                temperature_note=_opt("temperature_note"),
+                ph_value=_opt("ph_value"),
+                ph_note=_opt("ph_note"),
+                stirring_condition=_opt("stirring_condition"),
+                assembly_time=_opt("assembly_time"),
+                molecular_characteristics=_opt("molecular_characteristics"),
+                notes=_opt("notes"),
+                is_cosmetic=_opt_bool("is_cosmetic"),
+                cosmetic_note=_opt("cosmetic_note"),
+                is_drug=_opt_bool("is_drug"),
+                drug_note=_opt("drug_note"),
+                is_food=_opt_bool("is_food"),
+                food_note=_opt("food_note"),
+                food_category=_opt("food_category"),
+                food_daily_intake=_opt("food_daily_intake"),
+                regulations=_opt("regulations"),
+                component_count=_opt("component_count"),
+                responsiveness=_opt("responsiveness"),
+                surface_modification=_opt("surface_modification"),
+                url=_opt("url"),
                 building_block_id=bb.id if bb else None,
                 morphology_id=morph.id if morph else None,
+                assembly_drive_method_id=drive_method.id if drive_method else None,
                 driving_forces=driving_forces,
                 properties=properties,
             )
@@ -264,54 +383,6 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
     if created > 0:
         db.commit()
     return created, errors
-
-
-def _split_items(text: str) -> list[str]:
-    """Split text by semicolons, newlines and clean. Returns non-empty strings."""
-    import re
-    if not text:
-        return []
-    text = text.replace("；", ";").replace("\n", ";").replace("\r", ";")
-    parts = [p.strip() for p in text.split(";") if p.strip()]
-    return [re.sub(r'^\d+[\.\、\s]+', '', p).strip() for p in parts]
-
-
-# Category lookup: 食品=GB 2760 foodmate, 化妆品=cosmetic ingredient directory
-_CATEGORY_MAP: dict[int, str] = {}
-for _fid in [6, 31, 48, 49, 52, 66]:
-    _CATEGORY_MAP[_fid] = "食品"
-for _cid in [3, 5, 6, 10, 14, 32, 48, 49, 50, 52, 62]:
-    _existing = _CATEGORY_MAP.get(_cid)
-    _CATEGORY_MAP[_cid] = "食品和化妆品" if _existing else "化妆品"
-
-
-def get_category(assembly_id: int) -> str | None:
-    cat = _CATEGORY_MAP.get(assembly_id)
-    if cat:
-        return cat
-    return "药品"
-
-
-# Foodmate GB 2760 faid mapping (same IDs as cfsa.net.cn / foodmate.net)
-_FOODMATE_FAID: dict[int, int] = {
-    6: 87,    # 姜黄素
-    31: 278,  # 皂树皮提取物 (皂树皂苷)
-    48: 49,   # 甘草酸 → 甘草酸盐
-    49: 49,   # 甘草酸 → 甘草酸盐
-    52: 253,  # 叶黄素
-    66: 229,  # 甜菊糖苷
-}
-
-
-def get_foodmate_url(assembly_id: int, name: str) -> str | None:
-    cat = _CATEGORY_MAP.get(assembly_id)
-    if cat and "食品" in cat:
-        faid = _FOODMATE_FAID.get(assembly_id)
-        if faid:
-            return f"https://2760.foodmate.net/addtives/faid/{faid}.html"
-        from urllib.parse import quote
-        return f"https://2760.foodmate.net/addtives/search?keyword={quote(name)}"
-    return None
 
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "data", "uploads")

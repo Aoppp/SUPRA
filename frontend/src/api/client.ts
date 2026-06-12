@@ -1,4 +1,4 @@
-import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, WorkProgress } from '../types';
+import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress } from '../types';
 
 const BASE = '/api';
 
@@ -8,7 +8,7 @@ async function get<T>(url: string): Promise<T> {
   return res.json();
 }
 
-export function search(params: Record<string, string | number | undefined>) {
+export function search(params: Record<string, string | number | boolean | undefined>) {
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== '') query.set(k, String(v));
@@ -34,6 +34,10 @@ export function getDrivingForceList() {
 
 export function getPropertyList() {
   return get<Property[]>('/properties');
+}
+
+export function getAssemblyDriveMethodList() {
+  return get<AssemblyDriveMethod[]>('/assembly-drive-methods');
 }
 
 export function createAssembly(data: Record<string, unknown>) {

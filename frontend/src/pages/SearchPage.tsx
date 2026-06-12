@@ -1,23 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import * as api from '../api/client';
-import type { BuildingBlock, Morphology, DrivingForce, Property, SearchResult } from '../types';
+import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, SearchResult } from '../types';
 import { useLang } from '../context/LanguageContext';
-import type { TranslationKeys } from '../context/translations';
-
-const CAT_KEY: Record<string, TranslationKeys> = {
-  '食品': 'categoryFood',
-  '化妆品': 'categoryCosmetic',
-  '食品和化妆品': 'categoryBoth',
-  '药品': 'categoryDrug',
-};
-
-const CAT_COLOR: Record<string, string> = {
-  '食品': 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700',
-  '化妆品': 'bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-700',
-  '食品和化妆品': 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700',
-  '药品': 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700',
-};
 
 export default function SearchPage() {
   const { tr } = useLang();
@@ -25,17 +10,22 @@ export default function SearchPage() {
   const [bbList, setBbList] = useState<BuildingBlock[]>([]);
   const [morphList, setMorphList] = useState<Morphology[]>([]);
   const [dfList, setDfList] = useState<DrivingForce[]>([]);
-  const [propList, setPropList] = useState<Property[]>([]);
+  const [dmList, setDmList] = useState<AssemblyDriveMethod[]>([]);
 
+  // Primary filters
   const [name, setName] = useState('');
+  const [appFilter, setAppFilter] = useState(''); // '' | 'cosmetic' | 'drug' | 'food'
   const [buildingBlock, setBuildingBlock] = useState('');
+  const [assemblyType, setAssemblyType] = useState('');
+
+  // Advanced filters
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [morphology, setMorphology] = useState('');
   const [drivingForce, setDrivingForce] = useState('');
-  const [property, setProperty] = useState('');
-  const [solvent, setSolvent] = useState('');
-  const [assemblyType, setAssemblyType] = useState('');
+  const [assemblyDriveMethod, setAssemblyDriveMethod] = useState('');
   const [sizeMin, setSizeMin] = useState('');
   const [sizeMax, setSizeMax] = useState('');
+
   const [page, setPage] = useState(1);
 
   const [result, setResult] = useState<SearchResult | null>(null);
@@ -46,7 +36,7 @@ export default function SearchPage() {
     api.getBuildingBlockList().then(setBbList);
     api.getMorphologyList().then(setMorphList);
     api.getDrivingForceList().then(setDfList);
-    api.getPropertyList().then(setPropList);
+    api.getAssemblyDriveMethodList().then(setDmList);
   }, []);
 
   const doSearch = useCallback(async (pageNum = 1) => {
@@ -57,9 +47,11 @@ export default function SearchPage() {
         building_block: buildingBlock || undefined,
         morphology: morphology || undefined,
         driving_force: drivingForce || undefined,
-        property: property || undefined,
-        solvent: solvent || undefined,
         assembly_type: assemblyType || undefined,
+        assembly_drive_method: assemblyDriveMethod || undefined,
+        is_cosmetic: appFilter === 'cosmetic' ? true : undefined,
+        is_drug: appFilter === 'drug' ? true : undefined,
+        is_food: appFilter === 'food' ? true : undefined,
         size_min: sizeMin ? Number(sizeMin) : undefined,
         size_max: sizeMax ? Number(sizeMax) : undefined,
         page: pageNum,
@@ -70,11 +62,20 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [name, buildingBlock, morphology, drivingForce, property, solvent, assemblyType, sizeMin, sizeMax]);
+  }, [name, buildingBlock, morphology, drivingForce, assemblyType, assemblyDriveMethod, appFilter, sizeMin, sizeMax]);
 
   useEffect(() => { doSearch(1); }, []);
 
   const totalPages = result ? Math.ceil(result.total / result.page_size) : 0;
+
+  const catLabel = (a: { is_cosmetic: boolean; is_drug: boolean; is_food: boolean }) => {
+    const parts = [];
+    if (a.is_food) parts.push(tr('categoryFood'));
+    if (a.is_cosmetic) parts.push(tr('categoryCosmetic'));
+    if (a.is_drug) parts.push(tr('categoryDrug'));
+    if (parts.length === 0) return null;
+    return parts.join(' · ');
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -82,258 +83,228 @@ export default function SearchPage() {
         {tr('searchTitle')}
       </h1>
 
+      {/* Search & Filters */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('assemblyName')}</span>
-            <input
-              type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g., Fmoc-FF hydrogel"
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('buildingBlock')}</span>
-            <select
-              value={buildingBlock}
-              onChange={e => setBuildingBlock(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
-            >
-              <option value="">{tr('allBuildingBlocks')}</option>
-              {bbList.map(b => (
-                <option key={b.id} value={b.name}>{b.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('morphology')}</span>
-            <select
-              value={morphology}
-              onChange={e => setMorphology(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
-            >
-              <option value="">{tr('allMorphologies')}</option>
-              {morphList.map(m => (
-                <option key={m.id} value={m.name}>{m.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('drivingForce')}</span>
-            <select
-              value={drivingForce}
-              onChange={e => setDrivingForce(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
-            >
-              <option value="">{tr('allDrivingForces')}</option>
-              {dfList.map(d => (
-                <option key={d.id} value={d.name}>{d.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('property')}</span>
-            <select
-              value={property}
-              onChange={e => setProperty(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
-            >
-              <option value="">{tr('allProperties')}</option>
-              {propList.map(p => (
-                <option key={p.id} value={p.name}>{p.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('solvent')}</span>
-            <input
-              type="text" value={solvent} onChange={e => setSolvent(e.target.value)}
-              placeholder="e.g., Water"
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('assemblyTypeCol')}</span>
-            <input
-              type="text" value={assemblyType} onChange={e => setAssemblyType(e.target.value)}
-              placeholder="e.g., Self-assembly; Hydrogel"
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('sizeMin')}</span>
-            <input
-              type="number" value={sizeMin} onChange={e => setSizeMin(e.target.value)}
-              placeholder="e.g., 10"
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{tr('sizeMax')}</span>
-            <input
-              type="number" value={sizeMax} onChange={e => setSizeMax(e.target.value)}
-              placeholder="e.g., 200"
-              className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-            />
-          </label>
+        {/* Primary row */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          <input
+            type="text" value={name} onChange={e => setName(e.target.value)}
+            placeholder={tr('assemblyName')}
+            className="flex-1 min-w-[200px] rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <select
+            value={buildingBlock}
+            onChange={e => setBuildingBlock(e.target.value)}
+            className="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">{tr('allBuildingBlocks')}</option>
+            {bbList.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+          </select>
+          <select
+            value={assemblyType}
+            onChange={e => setAssemblyType(e.target.value)}
+            className="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">{tr('assemblyTypeCol')}</option>
+            {['水凝胶','纳米粒','纳米纤维','纳米胶束','纳米凝胶','超分子聚集体','纳米乳','脂质体'].map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => doSearch(1)}
+            disabled={loading}
+            className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? tr('searching') : tr('searchBtn')}
+          </button>
         </div>
 
+        {/* Application filter tabs */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <button
+            onClick={() => setAppFilter('')}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition ${appFilter === '' ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-800 border-slate-800 dark:border-slate-200' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:border-slate-400'}`}
+          >
+            {tr('filterAll')}
+          </button>
+          <button
+            onClick={() => setAppFilter(appFilter === 'food' ? '' : 'food')}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition ${appFilter === 'food' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:border-blue-400'}`}
+          >
+            {tr('isFoodLabel')}
+          </button>
+          <button
+            onClick={() => setAppFilter(appFilter === 'cosmetic' ? '' : 'cosmetic')}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition ${appFilter === 'cosmetic' ? 'bg-pink-500 text-white border-pink-500' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:border-pink-400'}`}
+          >
+            {tr('isCosmeticLabel')}
+          </button>
+          <button
+            onClick={() => setAppFilter(appFilter === 'drug' ? '' : 'drug')}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition ${appFilter === 'drug' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:border-amber-400'}`}
+          >
+            {tr('isDrugLabel')}
+          </button>
+        </div>
+
+        {/* Advanced filters toggle */}
         <button
-          onClick={() => doSearch(1)}
-          disabled={loading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="text-sm text-blue-600 hover:underline"
         >
-          {loading ? tr('searching') : tr('searchBtn')}
+          {showAdvanced ? '−' : '+'} {tr('advancedFilters')}
         </button>
+
+        {showAdvanced && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{tr('morphology')}</span>
+              <select value={morphology} onChange={e => setMorphology(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              >
+                <option value="">{tr('allMorphologies')}</option>
+                {morphList.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{tr('drivingForce')}</span>
+              <select value={drivingForce} onChange={e => setDrivingForce(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              >
+                <option value="">{tr('allDrivingForces')}</option>
+                {dfList.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{tr('assemblyDriveMethod')}</span>
+              <select value={assemblyDriveMethod} onChange={e => setAssemblyDriveMethod(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              >
+                <option value="">全部</option>
+                {dmList.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{tr('sizeMin')}</span>
+              <input type="number" value={sizeMin} onChange={e => setSizeMin(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{tr('sizeMax')}</span>
+              <input type="number" value={sizeMax} onChange={e => setSizeMax(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              />
+            </label>
+          </div>
+        )}
       </div>
 
+      {/* Loading skeleton */}
       {loading && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto animate-pulse">
-          <div className="p-4 space-y-3">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4" />
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/6" />
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/6" />
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/5" />
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/5" />
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
+              <div className="h-32 bg-slate-200 dark:bg-slate-700 rounded mb-3" />
+              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-2" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+            </div>
+          ))}
         </div>
       )}
 
-      {result && (
+      {/* Results - Card Grid */}
+      {result && !loading && (
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
             {tr('foundResults', { total: result.total })}
             {totalPages > 1 && ` · ${tr('pageOf', { page: result.page, total: totalPages })}`}
           </p>
 
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
-            <table className="w-full text-sm min-w-[1300px]">
-              <thead className="bg-slate-50 dark:bg-slate-700/50 border-b dark:border-slate-700">
-                <tr>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('nameCol')}</th>
-                  <th className="text-center px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('compoundImageCol')}</th>
-                  <th className="text-center px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('categoryCol')}</th>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('casCol')}</th>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('assemblyTypeCol')}</th>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('solventCol')}</th>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('drivingForceCol')}</th>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('morphologyCol')}</th>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('particleSizeCol')}</th>
-                  <th className="text-left px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('bioActivityCol')}</th>
-                  <th className="text-center px-3 py-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{tr('doiCol')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.results.map(a => (
-                  <tr key={a.id} className="border-b last:border-0 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
-                    <td className="px-3 py-3">
-                      <Link to={`/assembly/${a.id}`} className="text-blue-600 hover:underline font-medium">
-                        {a.name}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {a.compound_image ? (
-                        <img
-                          src={a.compound_image} alt={a.name}
-                          className="w-10 h-10 object-contain inline-block rounded border cursor-pointer hover:border-blue-400 hover:shadow-sm transition"
-                          onClick={() => setLightbox({ src: a.compound_image!, alt: a.name })}
-                        />
-                      ) : a.smiles ? (
-                        <img
-                          src={`/api/structure-image/${a.id}`}
-                          alt={a.name}
-                          className="w-10 h-10 object-contain inline-block rounded border cursor-pointer hover:border-blue-400 hover:shadow-sm transition"
-                          onError={e => {
-                            const el = e.target as HTMLImageElement;
-                            el.replaceWith(document.createTextNode('—'));
-                          }}
-                          onClick={() => setLightbox({ src: `/api/structure-image/${a.id}`, alt: a.name })}
-                        />
-                      ) : (
-                        <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {a.category ? (
-                        a.foodmate_url ? (
-                          <a href={a.foodmate_url} target="_blank" rel="noopener noreferrer"
-                            className={`inline-block px-2 py-0.5 rounded text-xs font-medium border hover:underline ${CAT_COLOR[a.category]}`}>
-                            {tr(CAT_KEY[a.category])} ↗
-                          </a>
-                        ) : (
-                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${CAT_COLOR[a.category]}`}>
-                            {tr(CAT_KEY[a.category])}
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs whitespace-nowrap">{a.cas_number ?? '-'}</td>
-                    <td className="px-3 py-3 text-slate-600 dark:text-slate-400 text-xs whitespace-normal min-w-[140px]">{a.assembly_type ?? '-'}</td>
-                    <td className="px-3 py-3 text-slate-600 dark:text-slate-400 text-xs whitespace-nowrap">{a.solvent ?? '-'}</td>
-                    <td className="px-3 py-3">
-                      {a.driving_forces.length > 0
-                        ? a.driving_forces.map(df => (
-                            <span key={df.id} className="inline-block px-1.5 py-0.5 rounded text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 mr-1 mb-0.5">{df.name}</span>
-                          ))
-                        : <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>}
-                    </td>
-                    <td className="px-3 py-3 text-slate-600 dark:text-slate-400 text-xs">{a.morphology?.name ?? '-'}</td>
-                    <td className="px-3 py-3 text-slate-600 text-xs whitespace-nowrap">{a.particle_size ?? '-'}</td>
-                    <td className="px-3 py-3">
-                      {a.properties.length > 0
-                        ? a.properties.map(p => (
-                            <span key={p.id} className="inline-block px-1.5 py-0.5 rounded text-xs bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 mr-1 mb-0.5">{p.name}</span>
-                          ))
-                        : <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {a.doi ? (
-                        <a
-                          href={`https://doi.org/${a.doi}`} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 text-slate-500 dark:text-slate-400 transition-colors"
-                          title={`DOI: ${a.doi}`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                            <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
-                            <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
-                          </svg>
-                        </a>
-                      ) : (
-                        <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {result.results.length === 0 && (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-12 text-center">
-                      <p className="text-slate-400 dark:text-slate-500 text-sm mb-2">{tr('noResults')}</p>
-                      <p className="text-slate-400 dark:text-slate-500 text-xs">
-                        {tr('noResultsHint') ?? 'Try adjusting your search terms or filters.'}
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {result.results.map(a => (
+              <Link
+                key={a.id}
+                to={`/assembly/${a.id}`}
+                className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all group"
+              >
+                {/* Compound Image */}
+                <div className="aspect-square bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 relative">
+                  {a.compound_image ? (
+                    <img
+                      src={a.compound_image} alt={a.name}
+                      className="max-w-full max-h-full object-contain"
+                      onClick={e => { e.preventDefault(); setLightbox({ src: a.compound_image!, alt: a.name }); }}
+                    />
+                  ) : a.smiles ? (
+                    <img
+                      src={`/api/structure-image/${a.id}`}
+                      alt={a.name}
+                      className="max-w-full max-h-full object-contain"
+                      onError={e => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                      onClick={e => { e.preventDefault(); setLightbox({ src: `/api/structure-image/${a.id}`, alt: a.name }); }}
+                    />
+                  ) : (
+                    <span className="text-slate-300 dark:text-slate-600 text-4xl">—</span>
+                  )}
+                  {/* Application badge */}
+                  {catLabel(a) && (
+                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                      {catLabel(a)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Card body */}
+                <div className="p-3">
+                  <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+                    {a.name}
+                  </h3>
+                  {a.english_name && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate italic mt-0.5">{a.english_name}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {a.building_block && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+                        {a.building_block.name}
+                      </span>
+                    )}
+                    {a.assembly_type && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
+                        {a.assembly_type}
+                      </span>
+                    )}
+                    {a.assembly_drive_method && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-700">
+                        {a.assembly_drive_method.name}
+                      </span>
+                    )}
+                  </div>
+                  {a.driving_forces.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {a.driving_forces.map(df => (
+                        <span key={df.id} className="px-1 py-0.5 rounded text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                          {df.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ))}
+            {result.results.length === 0 && (
+              <div className="col-span-full py-12 text-center">
+                <p className="text-slate-400 dark:text-slate-500 text-sm mb-2">{tr('noResults')}</p>
+                <p className="text-slate-400 dark:text-slate-500 text-xs">{tr('noResultsHint')}</p>
+              </div>
+            )}
           </div>
 
+          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-4">
+            <div className="flex justify-center gap-2 mt-6">
               {Array.from({ length: totalPages }, (_, i) => (
                 <button
                   key={i + 1}
@@ -352,6 +323,7 @@ export default function SearchPage() {
         </div>
       )}
 
+      {/* Lightbox */}
       {lightbox && (
         <div
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-8 cursor-pointer"

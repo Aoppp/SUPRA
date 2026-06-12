@@ -14,7 +14,7 @@ from database import engine, Base, get_db
 import crud
 import schemas
 
-app = FastAPI(title="SUPRA API", description="Supramolecular Assembly Database API", version="0.1.0")
+app = FastAPI(title="SUPRA API", description="Supramolecular Assembly Database API", version="0.2.0")
 
 CORS_ORIGINS = os.getenv(
     "CORS_ORIGINS",
@@ -47,8 +47,15 @@ def search(
     morphology: Optional[str] = Query(None),
     driving_force: Optional[str] = Query(None),
     property: Optional[str] = Query(None),
-    solvent: Optional[str] = Query(None),
     assembly_type: Optional[str] = Query(None),
+    assembly_drive_method: Optional[str] = Query(None),
+    aqueous_phase: Optional[str] = Query(None),
+    organic_phase: Optional[str] = Query(None),
+    is_cosmetic: Optional[bool] = Query(None),
+    is_drug: Optional[bool] = Query(None),
+    is_food: Optional[bool] = Query(None),
+    responsiveness: Optional[str] = Query(None),
+    surface_modification: Optional[str] = Query(None),
     size_min: Optional[float] = Query(None),
     size_max: Optional[float] = Query(None),
     page: int = Query(1, ge=1),
@@ -57,16 +64,21 @@ def search(
 ):
     params = schemas.SearchParams(
         name=name, building_block=building_block, morphology=morphology,
-        driving_force=driving_force, property=property, solvent=solvent,
-        assembly_type=assembly_type,
+        driving_force=driving_force, property=property,
+        assembly_type=assembly_type, assembly_drive_method=assembly_drive_method,
+        aqueous_phase=aqueous_phase, organic_phase=organic_phase,
+        is_cosmetic=is_cosmetic, is_drug=is_drug, is_food=is_food,
+        responsiveness=responsiveness, surface_modification=surface_modification,
         size_min=size_min, size_max=size_max,
         page=page, page_size=page_size,
     )
     total, results = crud.search_assemblies(db, params)
     items = [schemas.AssemblyListItem.model_validate(r) for r in results]
     for item in items:
-        item.category = crud.get_category(item.id)
-        item.foodmate_url = crud.get_foodmate_url(item.id, item.name)
+        a = next((r for r in results if r.id == item.id), None)
+        if a:
+            item.category = crud.compute_category(a)
+            item.foodmate_url = crud.compute_foodmate_url(a)
     return schemas.SearchResult(
         total=total, page=page, page_size=page_size,
         results=items,
@@ -79,8 +91,8 @@ def get_assembly(assembly_id: int, db: Session = Depends(get_db)):
     if not a:
         raise HTTPException(status_code=404, detail="Assembly not found")
     result = schemas.AssemblyDetail.model_validate(a)
-    result.category = crud.get_category(result.id)
-    result.foodmate_url = crud.get_foodmate_url(result.id, result.name)
+    result.category = crud.compute_category(a)
+    result.foodmate_url = crud.compute_foodmate_url(a)
     return result
 
 
@@ -104,6 +116,11 @@ def list_properties(db: Session = Depends(get_db)):
     return crud.get_property_list(db)
 
 
+@app.get("/api/assembly-drive-methods", response_model=list[schemas.AssemblyDriveMethodOut])
+def list_assembly_drive_methods(db: Session = Depends(get_db)):
+    return crud.get_assembly_drive_method_list(db)
+
+
 @app.post("/api/assemblies", response_model=schemas.AssemblyDetail)
 def create_assembly(data: schemas.AssemblyCreate, db: Session = Depends(get_db)):
     return crud.create_assembly(db, data)
@@ -121,22 +138,26 @@ async def batch_create_assemblies(file: UploadFile = File(...), db: Session = De
         raise HTTPException(status_code=400, detail="Failed to parse Excel file")
 
     ws = wb.active
-    if ws.max_row < 2:
+    if ws.max_row < 4:
         raise HTTPException(status_code=400, detail="Excel file has no data rows")
 
-    # Read header row
-    headers = {c: str(ws.cell(row=1, column=c).value or "").strip().lower().replace(" ", "_")
-               for c in range(1, ws.max_column + 1)}
+    # Build column mapping from 3-row header
+    # Row 1: category, Row 2: sub-header, Row 3: detail
+    # Some columns have merged cells so value may be on row 2 or 3
+    header_map: dict[int, str] = {}
+    for c in range(1, ws.max_column + 1):
+        # Use deepest available header value
+        val = ws.cell(row=3, column=c).value or ws.cell(row=2, column=c).value or ws.cell(row=1, column=c).value
+        key = str(val).strip() if val else f"col_{c}"
+        header_map[c] = key
 
-    # Read data rows into list of dicts
     rows: list[dict] = []
-    for r in range(2, ws.max_row + 1):
-        row = {}
+    for r in range(4, ws.max_row + 1):
+        row: dict[str, str] = {}
         for c in range(1, ws.max_column + 1):
-            key = headers.get(c, f"col_{c}")
+            key = header_map.get(c, f"col_{c}")
             val = ws.cell(row=r, column=c).value
             row[key] = str(val).strip() if val is not None else ""
-        # Skip completely empty rows
         if any(v for v in row.values()):
             rows.append(row)
 
@@ -163,8 +184,10 @@ def search_by_cas(cas: str = Query(...), db: Session = Depends(get_db)):
     results = crud.search_by_cas(db, cas)
     items = [schemas.AssemblyListItem.model_validate(r) for r in results]
     for item in items:
-        item.category = crud.get_category(item.id)
-        item.foodmate_url = crud.get_foodmate_url(item.id, item.name)
+        r = next((x for x in results if x.id == item.id), None)
+        if r:
+            item.category = crud.compute_category(r)
+            item.foodmate_url = crud.compute_foodmate_url(r)
     return items
 
 
@@ -218,7 +241,6 @@ def structure_image(assembly_id: int, db: Session = Depends(get_db)):
 
     try:
         from rdkit import Chem
-        from rdkit.Chem import Draw
         from rdkit.Chem.Draw import rdMolDraw2D
         import io
 

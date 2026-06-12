@@ -30,6 +30,11 @@ export interface Property {
   category?: string;
 }
 
+export interface AssemblyDriveMethod {
+  id: number;
+  name: string;
+}
+
 export interface AssemblyListItem {
   id: number;
   name: string;
@@ -39,22 +44,28 @@ export interface AssemblyListItem {
   cas_number?: string;
   assembly_type?: string;
   particle_size?: string;
-  solvent?: string;
+  aqueous_phase?: string;
+  organic_phase?: string;
   solute?: string;
   concentration?: string;
-  doi?: string;
   size_nm_min?: number;
   size_nm_max?: number;
+  doi?: string;
+  biological_activity?: string;
   building_block?: BuildingBlock;
   morphology?: Morphology;
+  assembly_drive_method?: AssemblyDriveMethod;
   driving_forces: DrivingForce[];
   properties: Property[];
-  description?: string;
-  biological_activity?: string;
+  is_cosmetic: boolean;
+  is_drug: boolean;
+  is_food: boolean;
+  component_count?: string;
+  responsiveness?: string;
+  surface_modification?: string;
   category?: string;
   foodmate_url?: string;
 }
-
 
 export interface AssemblyDetail {
   id: number;
@@ -65,24 +76,43 @@ export interface AssemblyDetail {
   cas_number?: string;
   assembly_type?: string;
   particle_size?: string;
-  solvent?: string;
+  aqueous_phase?: string;
+  organic_phase?: string;
   solute?: string;
   concentration?: string;
+  component_ratio?: string;
   preparation_method?: string;
   size_nm_min?: number;
   size_nm_max?: number;
+  size_note?: string;
+  size_source?: string;
   doi?: string;
-  description?: string;
   biological_activity?: string;
   assembly_temperature?: string;
+  temperature_note?: string;
   ph_value?: string;
+  ph_note?: string;
   stirring_condition?: string;
   assembly_time?: string;
   molecular_characteristics?: string;
   notes?: string;
+  is_cosmetic: boolean;
+  cosmetic_note?: string;
+  is_drug: boolean;
+  drug_note?: string;
+  is_food: boolean;
+  food_note?: string;
+  food_category?: string;
+  food_daily_intake?: string;
+  regulations?: string;
+  component_count?: string;
+  responsiveness?: string;
+  surface_modification?: string;
+  url?: string;
   building_block?: BuildingBlock;
   morphology?: Morphology;
   characterization_method?: CharacterizationMethod;
+  assembly_drive_method?: AssemblyDriveMethod;
   driving_forces: DrivingForce[];
   properties: Property[];
   category?: string;

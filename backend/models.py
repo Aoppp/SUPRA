@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -26,7 +26,7 @@ class BuildingBlock(Base):
     name = Column(String(200), unique=True, nullable=False)
     molecular_formula = Column(String(100))
     smiles = Column(String(500))
-    category = Column(String(100))  # small molecule, peptide, polymer, metal complex, etc.
+    category = Column(String(100))
 
     assemblies = relationship("Assembly", back_populates="building_block")
 
@@ -35,7 +35,7 @@ class DrivingForce(Base):
     __tablename__ = "driving_forces"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), unique=True, nullable=False)
-    category = Column(String(100))  # non-covalent, dynamic covalent, etc.
+    category = Column(String(100))
 
     assemblies = relationship("Assembly", secondary=assembly_driving_forces,
                                back_populates="driving_forces")
@@ -54,7 +54,7 @@ class CharacterizationMethod(Base):
     __tablename__ = "characterization_methods"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), unique=True, nullable=False)
-    category = Column(String(100))  # microscopy, spectroscopy, scattering, etc.
+    category = Column(String(100))
 
     assemblies = relationship("Assembly", back_populates="characterization_method")
 
@@ -63,10 +63,18 @@ class Property(Base):
     __tablename__ = "properties"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), unique=True, nullable=False)
-    category = Column(String(100))  # mechanical, optical, biological, catalytic, etc.
+    category = Column(String(100))
 
     assemblies = relationship("Assembly", secondary=assembly_properties,
                               back_populates="properties")
+
+
+class AssemblyDriveMethod(Base):
+    __tablename__ = "assembly_drive_methods"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), unique=True, nullable=False)
+
+    assemblies = relationship("Assembly", back_populates="assembly_drive_method")
 
 
 class Assembly(Base):
@@ -79,28 +87,55 @@ class Assembly(Base):
     cas_number = Column(String(50))
     assembly_type = Column(String(200))
     particle_size = Column(String(200))
-    solvent = Column(String(200))
+    aqueous_phase = Column(String(200))
+    organic_phase = Column(String(200))
     solute = Column(String(300))
     concentration = Column(String(200))
+    component_ratio = Column(String(200))
     preparation_method = Column(Text)
     size_nm_min = Column(Float)
     size_nm_max = Column(Float)
-    doi = Column(String(100))
-    description = Column(Text)
+    size_note = Column(String(500))
+    size_source = Column(String(500))
+    doi = Column(String(200))
     biological_activity = Column(Text)
     assembly_temperature = Column(String(200))
+    temperature_note = Column(String(500))
     ph_value = Column(String(100))
+    ph_note = Column(String(500))
     stirring_condition = Column(String(200))
     assembly_time = Column(String(200))
     molecular_characteristics = Column(Text)
     notes = Column(Text)
+
+    # Application classification
+    is_cosmetic = Column(Boolean, default=False)
+    cosmetic_note = Column(String(500))
+    is_drug = Column(Boolean, default=False)
+    drug_note = Column(String(500))
+    is_food = Column(Boolean, default=False)
+    food_note = Column(String(500))
+    food_category = Column(String(500))
+    food_daily_intake = Column(String(500))
+    regulations = Column(Text)
+
+    # Assembly process
+    component_count = Column(String(100))
+    responsiveness = Column(String(200))
+    surface_modification = Column(String(200))
+
+    # External links
+    url = Column(String(500))
+
     building_block_id = Column(Integer, ForeignKey("building_blocks.id"))
     morphology_id = Column(Integer, ForeignKey("morphologies.id"))
     characterization_method_id = Column(Integer, ForeignKey("characterization_methods.id"))
+    assembly_drive_method_id = Column(Integer, ForeignKey("assembly_drive_methods.id"))
 
     building_block = relationship("BuildingBlock", back_populates="assemblies")
     morphology = relationship("Morphology", back_populates="assemblies")
     characterization_method = relationship("CharacterizationMethod", back_populates="assemblies")
+    assembly_drive_method = relationship("AssemblyDriveMethod", back_populates="assemblies")
     driving_forces = relationship("DrivingForce", secondary=assembly_driving_forces,
                                    back_populates="assemblies")
     properties = relationship("Property", secondary=assembly_properties,

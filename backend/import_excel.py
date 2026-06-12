@@ -1,27 +1,21 @@
-"""Import data from 超分子数据收集2.0_自组装_修改(1).xlsx into the SUPRA database."""
+"""Import data from the standardized 超分子数据库 Excel into the SUPRA database.
+
+Excel format: 53 columns, 3-row merged header, data starts row 4.
+"""
 import os
 import re
 import openpyxl
 from database import engine, Base, get_db
-from models import Assembly, BuildingBlock, DrivingForce, Morphology, Property
+from models import Assembly, BuildingBlock, DrivingForce, Morphology, Property, AssemblyDriveMethod
 
 EXCEL_PATH = os.environ.get(
     "EXCEL_PATH",
-    os.path.join(os.path.dirname(__file__), "..", "data", "超分子数据收集2.0_自组装_修改(1).xlsx"),
+    os.path.join(os.path.dirname(__file__), "data", "260611_超分子数据库整理_修改(2).xlsx"),
 )
 IMAGES_DIR = os.environ.get(
     "IMAGES_DIR",
-    os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "images"),
+    os.path.join(os.path.dirname(__file__), "data", "images"),
 )
-
-
-def get_or_create(db, model, **kwargs):
-    instance = db.query(model).filter_by(**kwargs).first()
-    if not instance:
-        instance = model(**kwargs)
-        db.add(instance)
-        db.flush()
-    return instance
 
 
 def split_items(text: str) -> list[str]:
@@ -32,9 +26,36 @@ def split_items(text: str) -> list[str]:
     cleaned = []
     for p in parts:
         p = re.sub(r'^\d+[\.\、\s]+', '', p).strip()
-        if p:
+        if p and not p.startswith("—"):
             cleaned.append(p)
     return cleaned
+
+
+def parse_size_range(size_text: str) -> tuple[float | None, float | None]:
+    if not size_text:
+        return None, None
+    m = re.search(r'(\d+\.?\d*)\s*±\s*(\d+\.?\d*)', size_text)
+    if m:
+        return float(m.group(1)) - float(m.group(2)), float(m.group(1)) + float(m.group(2))
+    m = re.search(r'(\d+\.?\d*)\s*[–\-~]\s*(\d+\.?\d*)', size_text)
+    if m:
+        return float(m.group(1)), float(m.group(2))
+    m = re.search(r'(\d+\.?\d*)', size_text)
+    if m:
+        v = float(m.group(1))
+        return v, v
+    return None, None
+
+
+def clean_cas(cas: str) -> str:
+    """Normalize CAS number: replace non-breaking hyphens, extract first valid CAS."""
+    cas = cas.replace("‑", "-").strip()
+    # If contains multiple CAS numbers like "Rg1：22427-39-0   Rb1：41753-43-9"
+    # Extract the first CAS-like pattern
+    m = re.search(r'(\d{2,7}-\d{2}-\d)', cas)
+    if m:
+        return m.group(1)
+    return cas
 
 
 def import_data():
@@ -46,12 +67,10 @@ def import_data():
     wb = openpyxl.load_workbook(EXCEL_PATH)
     ws = wb.active
 
-    # Column mapping (1-indexed) based on the standardized template:
-    # 1:序号 2:化合物类型 3:化合物 4:英文名称 5:化合物图片 6:SMILES号 7:CAS号
-    # 8:组装类型 9:组装驱动力分析 10:形貌类型 11:粒径
-    # 12:溶剂信息(溶剂体系) 13:溶质 14:浓度 15:溶剂备注
-    # 16:组装温度 17:pH值 18:搅拌/超声条件 19:组装时间
-    # 20:生物活性 21:实验方法 22:参考文献DOI 23:分子的特征参数 24:备注
+    # Data starts at row 4 (rows 1-3 are merged headers)
+    DATA_START = 4
+
+    # Column mapping (1-indexed) for the new standardized template:
     COL = {
         "compound_type": 2,
         "compound_name": 3,
@@ -59,32 +78,50 @@ def import_data():
         "compound_image": 5,
         "smiles": 6,
         "cas": 7,
-        "assembly_type": 8,
-        "driving_force": 9,
-        "morphology": 10,
-        "particle_size": 11,
-        "solvent": 12,
-        "solute": 13,
-        "concentration": 14,
-        "solvent_note": 15,
-        "temperature": 16,
-        "ph": 17,
-        "stirring": 18,
-        "assembly_time": 19,
-        "biological_activity": 20,
-        "preparation_method": 21,
-        "doi": 22,
-        "molecular_char": 23,
-        "notes": 24,
+        "app_name": 8,
+        "is_cosmetic": 9,
+        "cosmetic_note": 10,
+        "is_drug": 11,
+        "drug_note": 12,
+        "is_food": 13,
+        "food_note": 14,
+        "food_category": 15,
+        "food_daily_intake": 16,
+        "regulations": 17,
+        "component_count": 18,
+        "assembly_drive_method": 19,
+        "assembly_type": 20,
+        "responsiveness": 21,
+        "surface_modification": 22,
+        "driving_force": 23,
+        "morphology": 24,
+        "particle_size": 25,
+        "size_note": 26,
+        "size_source": 27,
+        "aqueous_phase": 28,
+        "organic_phase": 29,
+        "solute": 30,
+        "concentration": 31,
+        "component_ratio": 32,
+        "temperature": 33,
+        "temperature_note": 34,
+        "ph": 35,
+        "ph_note": 36,
+        "stirring": 37,
+        "assembly_time": 38,
+        "biological_activity": 39,
+        "preparation_method": 40,
+        "doi": 41,
+        "molecular_char": 42,
+        "notes": 43,
+        "url": 44,
     }
 
-    # --- Extract embedded images, map by Excel row (1-indexed) ---
-    # An image covers a row if its anchor range (from_row..to_row) includes it.
-    # OneCellAnchor only has from_row; TwoCellAnchor has both from_row and to_row.
+    # --- Extract embedded images ---
     os.makedirs(IMAGES_DIR, exist_ok=True)
     row_images: dict[int, list[tuple[bytes, str]]] = {}
     for img in ws._images:
-        img_data = img._data()  # call once — subsequent calls fail on closed zip
+        img_data = img._data()
         img_fmt = img.format or "png"
         af = img.anchor._from
         at = img.anchor.to if hasattr(img.anchor, "to") else None
@@ -93,10 +130,11 @@ def import_data():
         for r in range(from_excel, to_excel + 1):
             row_images.setdefault(r, []).append((img_data, img_fmt))
 
-    print(f"Found {len(ws._images)} images covering {len(row_images)} rows. Reading {ws.max_row - 2} data rows...")
+    print(f"Found {len(ws._images)} images covering {len(row_images)} rows.")
+    print(f"Reading {ws.max_row - DATA_START + 1} data rows...")
 
     imported = 0
-    for row_idx in range(3, ws.max_row + 1):
+    for row_idx in range(DATA_START, ws.max_row + 1):
         def cell(c):
             v = ws.cell(row=row_idx, column=c).value
             return str(v).strip() if v is not None else ""
@@ -105,76 +143,83 @@ def import_data():
         if not compound_name:
             continue
 
-        # --- Building Block ---
+        # --- Building Block (normalize names) ---
         bb_name = cell(COL["compound_type"])
-        bb = get_or_create(db, BuildingBlock, name=bb_name) if bb_name else None
+        if bb_name == "生物碱类":
+            bb_name = "生物碱"
+        bb = None
+        if bb_name:
+            bb = db.query(BuildingBlock).filter_by(name=bb_name).first()
+            if not bb:
+                bb = BuildingBlock(name=bb_name)
+                db.add(bb)
+                db.flush()
 
         # --- Morphology ---
         morph_raw = cell(COL["morphology"]).split("\n")[0].split("；")[0].split(";")[0].strip()
         morph_name = re.sub(r'^\d+[\.\、\s]+', '', morph_raw).strip()
-        morph = get_or_create(db, Morphology, name=morph_name, description=morph_name) if morph_name else None
+        morph = None
+        if morph_name:
+            morph = db.query(Morphology).filter_by(name=morph_name).first()
+            if not morph:
+                morph = Morphology(name=morph_name, description=morph_name)
+                db.add(morph)
+                db.flush()
+
+        # --- Assembly Drive Method ---
+        dm_name = cell(COL["assembly_drive_method"])
+        drive_method = None
+        if dm_name:
+            drive_method = db.query(AssemblyDriveMethod).filter_by(name=dm_name).first()
+            if not drive_method:
+                drive_method = AssemblyDriveMethod(name=dm_name)
+                db.add(drive_method)
+                db.flush()
 
         # --- Driving Forces ---
         df_names = split_items(cell(COL["driving_force"]))
-        df_names = [df for df in df_names if not df.startswith("—")]
         driving_forces = []
         for df_name in df_names:
-            df = get_or_create(db, DrivingForce, name=df_name)
+            df = db.query(DrivingForce).filter_by(name=df_name).first()
+            if not df:
+                df = DrivingForce(name=df_name)
+                db.add(df)
+                db.flush()
             driving_forces.append(df)
 
-        # --- Properties (from 生物活性) ---
+        # --- Properties (from biological activity) ---
         bio_text = cell(COL["biological_activity"])
         prop_names = split_items(bio_text)
         properties = []
         for p_name in prop_names:
             if len(p_name) > 200:
                 p_name = p_name[:200]
-            p = get_or_create(db, Property, name=p_name)
+            p = db.query(Property).filter_by(name=p_name).first()
+            if not p:
+                p = Property(name=p_name)
+                db.add(p)
+                db.flush()
             properties.append(p)
 
-        # --- Particle size extraction ---
+        # --- Particle size ---
         size_text = cell(COL["particle_size"])
-        size_nm_min = None
-        size_nm_max = None
-        nm_match = re.search(r'(\d+\.?\d*)\s*(?:±|–|-)\s*(\d+\.?\d*)\s*nm', size_text)
-        if nm_match:
-            size_nm_min = float(nm_match.group(1))
-            size_nm_max = float(nm_match.group(2))
-        else:
-            nm_single = re.search(r'(\d+\.?\d*)\s*nm', size_text)
-            if nm_single:
-                size_nm_min = float(nm_single.group(1))
-                size_nm_max = float(nm_single.group(1))
+        size_min, size_max = parse_size_range(size_text)
 
-        mol_char = cell(COL["molecular_char"])
-        doi_val = cell(COL["doi"])
+        # --- CAS normalization ---
+        cas = clean_cas(cell(COL["cas"]))
 
-        # Fix column misalignment: 4 rows have col 22→23→24 shifted right
-        # col 22 actually contains molecular_char, col 23 actually contains extra notes
-        _MISALIGNED = {"金丝桃素", "芦荟大黄素", "丹参酮 ⅡA", "柔红霉素"}
-        _shifted_notes: str | None = None
-        if compound_name in _MISALIGNED:
-            _shifted_notes = mol_char  # col 23 content is actually notes
-            mol_char = doi_val          # col 22 content is molecular_char
-            doi_val = ""                # DOI is missing
-
-        # --- Notes ---
-        solvent_note = cell(COL["solvent_note"])
-        main_notes = cell(COL["notes"])
-        notes_parts = []
-        if solvent_note and solvent_note != "—":
-            notes_parts.append(f"[溶剂备注] {solvent_note}")
-        if main_notes and main_notes != "—":
-            notes_parts.append(main_notes)
-        if _shifted_notes and _shifted_notes != "—":
-            notes_parts.append(_shifted_notes)
-        combined_notes = "\n".join(notes_parts) if notes_parts else None
+        # --- Boolean helpers ---
+        def opt(k, default=None):
+            v = cell(k)
+            if not v or v == "无":
+                return default
+            return v
 
         # --- Extract and save compound image ---
         compound_image = None
         imgs = row_images.get(row_idx)
         if imgs:
-            img_data, img_fmt = imgs[0]  # use first image
+            img_data, img_fmt = imgs[0]
             img_filename = f"{row_idx}.{img_fmt}"
             img_path = os.path.join(IMAGES_DIR, img_filename)
             with open(img_path, "wb") as f:
@@ -183,36 +228,55 @@ def import_data():
 
         assembly = Assembly(
             name=compound_name,
-            english_name=cell(COL["english_name"]) or None,
+            english_name=opt(COL["english_name"]),
             compound_image=compound_image,
-            smiles=cell(COL["smiles"]) or None,
-            cas_number=cell(COL["cas"]) or None,
-            assembly_type=cell(COL["assembly_type"]).replace(";\n", "; ").replace("\n", "; ") or None,
+            smiles=opt(COL["smiles"]),
+            cas_number=cas or None,
+            assembly_type=opt(COL["assembly_type"]),
             particle_size=size_text or None,
-            solvent=cell(COL["solvent"])[:200] if cell(COL["solvent"]) else None,
-            solute=cell(COL["solute"])[:300] if cell(COL["solute"]) else None,
-            concentration=cell(COL["concentration"])[:200] if cell(COL["concentration"]) else None,
-            preparation_method=cell(COL["preparation_method"]) or None,
-            size_nm_min=size_nm_min,
-            size_nm_max=size_nm_max,
-            doi=doi_val or None,
-            description=mol_char or None,
+            aqueous_phase=opt(COL["aqueous_phase"]),
+            organic_phase=opt(COL["organic_phase"]),
+            solute=opt(COL["solute"]),
+            concentration=opt(COL["concentration"]),
+            component_ratio=opt(COL["component_ratio"]),
+            preparation_method=opt(COL["preparation_method"]),
+            size_nm_min=size_min,
+            size_nm_max=size_max,
+            size_note=opt(COL["size_note"]),
+            size_source=opt(COL["size_source"]),
+            doi=opt(COL["doi"]),
             biological_activity=bio_text or None,
-            assembly_temperature=cell(COL["temperature"]) or None,
-            ph_value=cell(COL["ph"]) or None,
-            stirring_condition=cell(COL["stirring"]) or None,
-            assembly_time=cell(COL["assembly_time"]) or None,
-            molecular_characteristics=mol_char or None,
-            notes=combined_notes,
+            assembly_temperature=opt(COL["temperature"]),
+            temperature_note=opt(COL["temperature_note"]),
+            ph_value=opt(COL["ph"]),
+            ph_note=opt(COL["ph_note"]),
+            stirring_condition=opt(COL["stirring"]),
+            assembly_time=opt(COL["assembly_time"]),
+            molecular_characteristics=opt(COL["molecular_char"]),
+            notes=opt(COL["notes"]),
+            is_cosmetic=cell(COL["is_cosmetic"]) == "是",
+            cosmetic_note=opt(COL["cosmetic_note"]),
+            is_drug=cell(COL["is_drug"]) == "是",
+            drug_note=opt(COL["drug_note"]),
+            is_food=cell(COL["is_food"]) == "是",
+            food_note=opt(COL["food_note"]),
+            food_category=opt(COL["food_category"]),
+            food_daily_intake=opt(COL["food_daily_intake"]),
+            regulations=opt(COL["regulations"]),
+            component_count=opt(COL["component_count"]),
+            responsiveness=opt(COL["responsiveness"]),
+            surface_modification=opt(COL["surface_modification"]),
+            url=opt(COL["url"]),
             building_block_id=bb.id if bb else None,
             morphology_id=morph.id if morph else None,
+            assembly_drive_method_id=drive_method.id if drive_method else None,
         )
         assembly.driving_forces = driving_forces
         assembly.properties = properties
         db.add(assembly)
 
         imported += 1
-        if imported % 10 == 0:
+        if imported % 20 == 0:
             db.flush()
             print(f"  Imported {imported} entries...")
 
@@ -226,6 +290,7 @@ def import_data():
     print(f"  Morphologies: {db2.query(Morphology).count()}")
     print(f"  Driving Forces: {db2.query(DrivingForce).count()}")
     print(f"  Properties: {db2.query(Property).count()}")
+    print(f"  Assembly Drive Methods: {db2.query(AssemblyDriveMethod).count()}")
     print(f"  Assemblies: {db2.query(Assembly).count()}")
     db2.close()
 
