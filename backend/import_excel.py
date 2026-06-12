@@ -120,6 +120,8 @@ def import_data():
     # --- Extract embedded images ---
     os.makedirs(IMAGES_DIR, exist_ok=True)
     row_images: dict[int, list[tuple[bytes, str]]] = {}
+
+    # Use openpyxl's _images first (works on macOS/Windows)
     for img in ws._images:
         img_data = img._data()
         img_fmt = img.format or "png"
@@ -130,7 +132,52 @@ def import_data():
         for r in range(from_excel, to_excel + 1):
             row_images.setdefault(r, []).append((img_data, img_fmt))
 
-    print(f"Found {len(ws._images)} images covering {len(row_images)} rows.")
+    # Fallback: extract directly from ZIP (fixes Linux openpyxl bug)
+    if not row_images:
+        import zipfile
+        from xml.etree import ElementTree as ET
+        with zipfile.ZipFile(EXCEL_PATH) as z:
+            # Parse drawing relationships: rId → media file
+            drawing_rels = {}
+            rels_path = "xl/drawings/_rels/drawing1.xml.rels"
+            if rels_path in z.namelist():
+                ns = {"r": "http://schemas.openxmlformats.org/package/2006/relationships"}
+                tree = ET.fromstring(z.read(rels_path))
+                for rel in tree:
+                    rid = rel.get("Id")
+                    target = rel.get("Target")
+                    if target and "image" in target.lower():
+                        drawing_rels[rid] = target.replace("../media/", "")
+
+            # Parse drawing XML: image anchor row → media rId
+            drawing_path = "xl/drawings/drawing1.xml"
+            if drawing_path in z.namelist():
+                ns = {
+                    "xdr": "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing",
+                    "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+                }
+                tree = ET.fromstring(z.read(drawing_path))
+                for anchor in tree.iter("{%s}twoCellAnchor" % ns["xdr"]):
+                    from_el = anchor.find("xdr:from", ns)
+                    to_el = anchor.find("xdr:to", ns)
+                    if from_el is None:
+                        continue
+                    from_row = int(from_el.find("xdr:row", ns).text)
+                    to_row = (int(to_el.find("xdr:row", ns).text) + 1) if to_el is not None else from_row + 1
+                    # Excel rows are 0-indexed, +1 for 1-indexed display row
+                    for r in range(from_row + 1, to_row + 1):
+                        # Find blip embed rId
+                        for blip in anchor.iter("{%s}blip" % ns["a"]):
+                            embed = blip.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed")
+                            if embed and embed in drawing_rels:
+                                media_file = drawing_rels[embed]
+                                img_bytes = z.read(f"xl/media/{media_file}")
+                                fmt = media_file.rsplit(".", 1)[-1]
+                                row_images.setdefault(r, []).append((img_bytes, fmt))
+
+            z.close()
+
+    print(f"Found {sum(len(v) for v in row_images.values())} images covering {len(row_images)} rows.")
     print(f"Reading {ws.max_row - DATA_START + 1} data rows...")
 
     imported = 0
