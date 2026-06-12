@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/dolphin.db
+data/uploads/
+.venv/
+.env
+.env.local

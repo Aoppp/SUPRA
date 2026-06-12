@@ -5,8 +5,14 @@ import openpyxl
 from database import engine, Base, get_db
 from models import Assembly, BuildingBlock, DrivingForce, Morphology, Property
 
-EXCEL_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "超分子数据收集2.0_自组装_修改(1).xlsx")
-IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "images")
+EXCEL_PATH = os.environ.get(
+    "EXCEL_PATH",
+    os.path.join(os.path.dirname(__file__), "..", "data", "超分子数据收集2.0_自组装_修改(1).xlsx"),
+)
+IMAGES_DIR = os.environ.get(
+    "IMAGES_DIR",
+    os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "images"),
+)
 
 
 def get_or_create(db, model, **kwargs):

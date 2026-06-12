@@ -43,6 +43,8 @@ export interface AssemblyListItem {
   solute?: string;
   concentration?: string;
   doi?: string;
+  size_nm_min?: number;
+  size_nm_max?: number;
   building_block?: BuildingBlock;
   morphology?: Morphology;
   driving_forces: DrivingForce[];
@@ -50,7 +52,7 @@ export interface AssemblyListItem {
   description?: string;
   biological_activity?: string;
   category?: string;
-  foodmate_url?: string; //"食品" | "化妆品" | "食品和化妆品"
+  foodmate_url?: string;
 }
 
 
@@ -84,7 +86,7 @@ export interface AssemblyDetail {
   driving_forces: DrivingForce[];
   properties: Property[];
   category?: string;
-  foodmate_url?: string; //"食品" | "化妆品" | "食品和化妆品"
+  foodmate_url?: string;
 }
 
 export interface SearchResult {
