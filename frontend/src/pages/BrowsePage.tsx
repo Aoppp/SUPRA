@@ -19,6 +19,19 @@ export default function BrowsePage() {
       .finally(() => setLoading(false));
   }, [page]);
 
+  // Restore scroll position after navigating back
+  useEffect(() => {
+    if (!loading && data) {
+      const saved = sessionStorage.getItem('browse_scroll');
+      if (saved) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, Number(saved));
+          sessionStorage.removeItem('browse_scroll');
+        });
+      }
+    }
+  }, [loading, data]);
+
   const totalPages = data ? Math.ceil(data.total / data.page_size) : 0;
 
   const catLabel = (a: { is_cosmetic: boolean; is_drug: boolean; is_food: boolean }) => {
@@ -57,6 +70,7 @@ export default function BrowsePage() {
               <Link
                 key={a.id}
                 to={`/assembly/${a.id}`}
+                onClick={() => sessionStorage.setItem('browse_scroll', String(window.scrollY))}
                 className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all group"
               >
                 <div className="aspect-square bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 relative">

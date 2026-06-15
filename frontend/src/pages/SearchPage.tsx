@@ -33,6 +33,19 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
+  // Restore scroll position after navigating back
+  useEffect(() => {
+    if (!loading && result) {
+      const saved = sessionStorage.getItem('search_scroll');
+      if (saved) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, Number(saved));
+          sessionStorage.removeItem('search_scroll');
+        });
+      }
+    }
+  }, [loading, result]);
+
   useEffect(() => {
     api.getBuildingBlockList().then(setBbList);
     api.getMorphologyList().then(setMorphList);
@@ -228,6 +241,7 @@ export default function SearchPage() {
               <Link
                 key={a.id}
                 to={`/assembly/${a.id}`}
+                onClick={() => sessionStorage.setItem('search_scroll', String(window.scrollY))}
                 className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all group"
               >
                 {/* Compound Image */}
