@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import * as api from '../api/client';
 import type { AssemblyDetail } from '../types';
 import { useLang } from '../context/LanguageContext';
@@ -39,6 +39,7 @@ function Tag({ children, color = 'slate' }: { children: string; color?: string }
 export default function DetailPage() {
   const { id } = useParams<{ id: string }>();
   const { tr } = useLang();
+  const navigate = useNavigate();
   const [data, setData] = useState<AssemblyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -81,9 +82,9 @@ export default function DetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <Link to="/" className="text-sm text-blue-600 hover:underline mb-4 inline-block">
+      <button onClick={() => navigate(-1)} className="text-sm text-blue-600 hover:underline mb-4 inline-block bg-transparent border-none cursor-pointer">
         {tr('backToSearch')}
-      </Link>
+      </button>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-6 mb-6">

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
 import type { SearchResult } from '../types';
 import { useLang } from '../context/LanguageContext';
 
 export default function BrowsePage() {
   const { tr } = useLang();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page')) || 1;
   const [data, setData] = useState<SearchResult | null>(null);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
@@ -117,7 +118,7 @@ export default function BrowsePage() {
               {Array.from({ length: totalPages }, (_, i) => (
                 <button
                   key={i + 1}
-                  onClick={() => setPage(i + 1)}
+                  onClick={() => setSearchParams({ page: String(i + 1) })}
                   className={`px-3 py-1 rounded text-sm ${
                     page === i + 1
                       ? 'bg-blue-600 text-white'

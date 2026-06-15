@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
 import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, SearchResult } from '../types';
 import { useLang } from '../context/LanguageContext';
@@ -26,7 +26,8 @@ export default function SearchPage() {
   const [sizeMin, setSizeMin] = useState('');
   const [sizeMax, setSizeMax] = useState('');
 
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page')) || 1;
 
   const [result, setResult] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,7 +59,7 @@ export default function SearchPage() {
         page_size: 20,
       });
       setResult(r);
-      setPage(pageNum);
+      setSearchParams({ page: String(pageNum) });
     } finally {
       setLoading(false);
     }
