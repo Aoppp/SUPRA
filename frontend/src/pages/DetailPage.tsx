@@ -134,9 +134,25 @@ export default function DetailPage() {
 
         {/* 🧬 Molecular Information */}
         <Section title={tr('moleculeInfo')}>
+          {data.smiles && (
+            <div className="flex justify-center mb-3 p-2 bg-white rounded border border-slate-100 dark:border-slate-700">
+              <img
+                src={`/api/structure-image/${data.id}`}
+                alt="Chemical structure"
+                className="max-w-full h-auto object-contain"
+                style={{ maxHeight: '180px' }}
+              />
+            </div>
+          )}
           <dl className="space-y-0.5">
             <Field label="CAS">{data.cas_number}</Field>
             <Field label={tr('buildingBlockSection')}>{data.building_block?.name}</Field>
+            {data.smiles && (
+              <div className="py-1">
+                <dt className="text-xs text-slate-400 dark:text-slate-500">{tr('smiles')}</dt>
+                <dd className="text-xs font-mono text-slate-500 dark:text-slate-400 break-all mt-0.5">{data.smiles}</dd>
+              </div>
+            )}
             {data.molecular_characteristics && (
               <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
                 <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">{tr('molecularCharacteristics')}</p>
@@ -264,13 +280,6 @@ export default function DetailPage() {
             </Field>
           </dl>
         </Section>
-
-        {/* SMILES */}
-        {data.smiles && (
-          <Section title={tr('smiles')} span>
-            <p className="font-mono text-xs text-slate-500 dark:text-slate-400 break-all">{data.smiles}</p>
-          </Section>
-        )}
 
         {/* Notes */}
         {data.notes && (
