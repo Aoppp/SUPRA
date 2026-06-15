@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from models import Assembly, BuildingBlock, DrivingForce, Morphology, CharacterizationMethod, Property, AssemblyDriveMethod, WorkProgress
+from models import Assembly, BuildingBlock, DrivingForce, Morphology, Property, AssemblyDriveMethod, WorkProgress
 from schemas import SearchParams, AssemblyCreate, WorkProgressCreate
 import os
 import re
@@ -23,10 +23,6 @@ def get_property_list(db: Session):
 
 def get_assembly_drive_method_list(db: Session):
     return db.query(AssemblyDriveMethod).order_by(AssemblyDriveMethod.name).all()
-
-
-def get_characterization_method_list(db: Session):
-    return db.query(CharacterizationMethod).order_by(CharacterizationMethod.name).all()
 
 
 def get_assembly_detail(db: Session, assembly_id: int):

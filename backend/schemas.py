@@ -130,7 +130,6 @@ class AssemblyDetail(BaseModel):
 
     building_block: Optional[BuildingBlockOut] = None
     morphology: Optional[MorphologyOut] = None
-    characterization_method: Optional[CharacterizationMethodOut] = None
     assembly_drive_method: Optional[AssemblyDriveMethodOut] = None
     driving_forces: list[DrivingForceOut] = []
     properties: list[PropertyOut] = []
@@ -210,7 +209,6 @@ class AssemblyCreate(BaseModel):
     url: Optional[str] = None
     building_block_id: Optional[int] = None
     morphology_id: Optional[int] = None
-    characterization_method_id: Optional[int] = None
     assembly_drive_method_id: Optional[int] = None
     driving_force_ids: Optional[list[int]] = None
     property_ids: Optional[list[int]] = None

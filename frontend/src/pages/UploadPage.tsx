@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api/client';
-import type { BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, CharacterizationMethod, AssemblyListItem } from '../types';
+import type { BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, AssemblyListItem } from '../types';
 import Toast from '../components/Toast';
 const ADMIN_PASSWORD = 'Chaofenzi';
 
@@ -49,7 +49,6 @@ function makeForm(): FormData {
     building_block_id: '',
     morphology_id: '',
     assembly_drive_method_id: '',
-    characterization_method_id: '',
   };
 }
 
@@ -88,8 +87,6 @@ export default function UploadPage() {
   const [dfList, setDfList] = useState<DrivingForce[]>([]);
   const [propList, setPropList] = useState<Property[]>([]);
   const [driveList, setDriveList] = useState<AssemblyDriveMethod[]>([]);
-  const [charList, setCharList] = useState<CharacterizationMethod[]>([]);
-
   // --- Single upload ---
   const [form, setForm] = useState<FormData>(makeForm());
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -121,7 +118,6 @@ export default function UploadPage() {
     api.getDrivingForceList().then(setDfList);
     api.getPropertyList().then(setPropList);
     api.getAssemblyDriveMethodList().then(setDriveList);
-    api.getCharacterizationMethodList().then(setCharList);
   }, []);
 
   const upd = (k: string, v: string | boolean) => setForm(prev => ({ ...prev, [k]: v }));
@@ -141,7 +137,7 @@ export default function UploadPage() {
       for (const [k, v] of Object.entries(form)) {
         if (k === 'compound_image') continue; // handled above
         if (v === '' || v === undefined || v === null) continue;
-        if (['size_nm_min', 'size_nm_max', 'building_block_id', 'morphology_id', 'assembly_drive_method_id', 'characterization_method_id'].includes(k)) {
+        if (['size_nm_min', 'size_nm_max', 'building_block_id', 'morphology_id', 'assembly_drive_method_id'].includes(k)) {
           payload[k] = Number(v);
         } else {
           payload[k] = v;
@@ -674,12 +670,6 @@ export default function UploadPage() {
                     <Field label="制备方法" span>
                       <textarea value={form.preparation_method as string} onChange={e => upd('preparation_method', e.target.value)}
                         rows={3} className={inputCls} />
-                    </Field>
-                    <Field label="表征方法">
-                      <select value={form.characterization_method_id as string} onChange={e => upd('characterization_method_id', e.target.value)} className={inputCls}>
-                        <option value="">—</option>
-                        {charList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
                     </Field>
                   </div>
                 )}

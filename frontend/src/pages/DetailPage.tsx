@@ -134,16 +134,6 @@ export default function DetailPage() {
 
         {/* Molecular Information */}
         <Section title={tr('moleculeInfo')}>
-          {data.smiles && (
-            <div className="flex justify-center mb-3 p-2 bg-white rounded border border-slate-100 dark:border-slate-700">
-              <img
-                src={`/api/structure-image/${data.id}`}
-                alt="Chemical structure"
-                className="max-w-full h-auto object-contain"
-                style={{ maxHeight: '180px' }}
-              />
-            </div>
-          )}
           <dl className="space-y-0.5">
             <Field label="CAS">{data.cas_number}</Field>
             <Field label={tr('buildingBlockSection')}>{data.building_block?.name}</Field>
@@ -263,9 +253,6 @@ export default function DetailPage() {
           <dl className="space-y-0.5">
             <Field label={tr('stirringCondition')}>{data.stirring_condition}</Field>
             <Field label={tr('assemblyTime')}>{data.assembly_time}</Field>
-            {data.characterization_method && (
-              <Field label={tr('characterizationMethod')}>{data.characterization_method.name}</Field>
-            )}
             <Field label={tr('doi')}>
               {data.doi && (
                 <a href={`https://doi.org/${data.doi}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">

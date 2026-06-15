@@ -111,7 +111,6 @@ export interface AssemblyDetail {
   url?: string;
   building_block?: BuildingBlock;
   morphology?: Morphology;
-  characterization_method?: CharacterizationMethod;
   assembly_drive_method?: AssemblyDriveMethod;
   driving_forces: DrivingForce[];
   properties: Property[];

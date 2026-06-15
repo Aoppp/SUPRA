@@ -1,4 +1,4 @@
-import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, CharacterizationMethod, WorkProgress } from '../types';
+import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress } from '../types';
 
 const BASE = '/api';
 
@@ -34,10 +34,6 @@ export function getDrivingForceList() {
 
 export function getPropertyList() {
   return get<Property[]>('/properties');
-}
-
-export function getCharacterizationMethodList() {
-  return get<CharacterizationMethod[]>('/characterization-methods');
 }
 
 export function getAssemblyDriveMethodList() {

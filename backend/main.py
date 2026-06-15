@@ -116,11 +116,6 @@ def list_properties(db: Session = Depends(get_db)):
     return crud.get_property_list(db)
 
 
-@app.get("/api/characterization-methods", response_model=list[schemas.CharacterizationMethodOut])
-def list_characterization_methods(db: Session = Depends(get_db)):
-    return crud.get_characterization_method_list(db)
-
-
 @app.get("/api/assembly-drive-methods", response_model=list[schemas.AssemblyDriveMethodOut])
 def list_assembly_drive_methods(db: Session = Depends(get_db)):
     return crud.get_assembly_drive_method_list(db)
@@ -277,7 +272,6 @@ async def batch_create_assemblies(file: UploadFile = File(...), db: Session = De
         "化合物类型": "building_block",
         "构建基元": "building_block",
         "形貌": "morphology",
-        "表征方法": "characterization_method",
         "驱动方式": "assembly_drive_method",
         "组装驱动方式": "assembly_drive_method",
         "驱动力": "driving_forces",
