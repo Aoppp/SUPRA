@@ -47,7 +47,7 @@ export default function Layout() {
       </main>
       <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 mt-8">
         <div className="max-w-6xl mx-auto px-4 flex justify-between items-center text-xs text-slate-400 dark:text-slate-500">
-          <span>© 2026 SAD — Supramolecular Universal Platform for Research on Assemblies</span>
+          <span>© 2026 SAD — Supramolecular Assembly Database</span>
           <span>武汉大学 · 武汉轻工大学 · 王叔和生物科技</span>
         </div>
       </footer>
