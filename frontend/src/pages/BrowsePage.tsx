@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
 import type { SearchResult } from '../types';
@@ -19,15 +19,13 @@ export default function BrowsePage() {
       .finally(() => setLoading(false));
   }, [page]);
 
-  // Restore scroll position after navigating back
-  useEffect(() => {
+  // Restore scroll position before paint (no visible jump)
+  useLayoutEffect(() => {
     if (!loading && data) {
       const saved = sessionStorage.getItem('browse_scroll');
       if (saved) {
-        requestAnimationFrame(() => {
-          window.scrollTo(0, Number(saved));
-          sessionStorage.removeItem('browse_scroll');
-        });
+        window.scrollTo(0, Number(saved));
+        sessionStorage.removeItem('browse_scroll');
       }
     }
   }, [loading, data]);

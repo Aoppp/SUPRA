@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
 import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, SearchResult } from '../types';
@@ -33,15 +33,13 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
-  // Restore scroll position after navigating back
-  useEffect(() => {
+  // Restore scroll position before paint (no visible jump)
+  useLayoutEffect(() => {
     if (!loading && result) {
       const saved = sessionStorage.getItem('search_scroll');
       if (saved) {
-        requestAnimationFrame(() => {
-          window.scrollTo(0, Number(saved));
-          sessionStorage.removeItem('search_scroll');
-        });
+        window.scrollTo(0, Number(saved));
+        sessionStorage.removeItem('search_scroll');
       }
     }
   }, [loading, result]);
