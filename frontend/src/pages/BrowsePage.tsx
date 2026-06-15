@@ -1,34 +1,52 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
 import type { SearchResult } from '../types';
 import { useLang } from '../context/LanguageContext';
 
+const CACHE_KEY_PREFIX = 'browse_data_v1_';
+
 export default function BrowsePage() {
   const { tr } = useLang();
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Number(searchParams.get('page')) || 1;
-  const [data, setData] = useState<SearchResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `${CACHE_KEY_PREFIX}${page}`;
+
+  // Try cache-first: restore data instantly from sessionStorage
+  const [data, setData] = useState<SearchResult | null>(() => {
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+      if (cached?.results) return cached;
+    } catch { /* ignore */ }
+    return null;
+  });
+  const [loading, setLoading] = useState(!data);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
-  useEffect(() => {
-    setLoading(true);
-    api.search({ page, page_size: 20 })
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, [page]);
+  const restoredRef = useRef(false);
 
-  // Restore scroll position before paint (no visible jump)
+  // Restore scroll position synchronously before first paint
   useLayoutEffect(() => {
-    if (!loading && data) {
+    if (!restoredRef.current) {
+      restoredRef.current = true;
       const saved = sessionStorage.getItem('browse_scroll');
       if (saved) {
         window.scrollTo(0, Number(saved));
         sessionStorage.removeItem('browse_scroll');
       }
     }
-  }, [loading, data]);
+  });
+
+  // Fetch fresh data (runs even if cached data is shown)
+  useEffect(() => {
+    setLoading(true);
+    api.search({ page, page_size: 20 })
+      .then(result => {
+        setData(result);
+        sessionStorage.setItem(cacheKey, JSON.stringify(result));
+      })
+      .finally(() => setLoading(false));
+  }, [page, cacheKey]);
 
   const totalPages = data ? Math.ceil(data.total / data.page_size) : 0;
 
@@ -47,7 +65,16 @@ export default function BrowsePage() {
         {tr('browseAll')}
       </h1>
 
-      {loading ? (
+      {/* Show cached data immediately, with a subtle refresh indicator */}
+      {loading && data && (
+        <div className="fixed top-14 left-0 right-0 z-10 flex justify-center">
+          <div className="bg-blue-600 text-white text-xs px-3 py-1 rounded-b-md shadow-md opacity-80">
+            {tr('refreshing') || '...'}
+          </div>
+        </div>
+      )}
+
+      {!data && loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">

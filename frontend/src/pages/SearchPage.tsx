@@ -1,8 +1,10 @@
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
 import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, SearchResult } from '../types';
 import { useLang } from '../context/LanguageContext';
+
+const SEARCH_CACHE_KEY = 'search_cache_v1';
 
 export default function SearchPage() {
   const { tr } = useLang();
@@ -12,37 +14,43 @@ export default function SearchPage() {
   const [dfList, setDfList] = useState<DrivingForce[]>([]);
   const [dmList, setDmList] = useState<AssemblyDriveMethod[]>([]);
 
-  // Primary filters
-  const [name, setName] = useState('');
-  const [appFilter, setAppFilter] = useState(''); // '' | 'cosmetic' | 'drug' | 'food'
-  const [buildingBlock, setBuildingBlock] = useState('');
-  const [assemblyType, setAssemblyType] = useState('');
-
-  // Advanced filters
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [morphology, setMorphology] = useState('');
-  const [drivingForce, setDrivingForce] = useState('');
-  const [assemblyDriveMethod, setAssemblyDriveMethod] = useState('');
-  const [sizeMin, setSizeMin] = useState('');
-  const [sizeMax, setSizeMax] = useState('');
+  // Try restore cached state on mount
+  const cached = (() => {
+    try { return JSON.parse(sessionStorage.getItem(SEARCH_CACHE_KEY) || 'null'); } catch { return null; }
+  })();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const page = Number(searchParams.get('page')) || 1;
+  const cachedPage = Number(searchParams.get('page')) || (cached?.page || 1);
+  const page = cachedPage;
 
-  const [result, setResult] = useState<SearchResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState(cached?.name || '');
+  const [appFilter, setAppFilter] = useState(cached?.appFilter || '');
+  const [buildingBlock, setBuildingBlock] = useState(cached?.buildingBlock || '');
+  const [assemblyType, setAssemblyType] = useState(cached?.assemblyType || '');
+
+  const [showAdvanced, setShowAdvanced] = useState(cached?.showAdvanced || false);
+  const [morphology, setMorphology] = useState(cached?.morphology || '');
+  const [drivingForce, setDrivingForce] = useState(cached?.drivingForce || '');
+  const [assemblyDriveMethod, setAssemblyDriveMethod] = useState(cached?.assemblyDriveMethod || '');
+  const [sizeMin, setSizeMin] = useState(cached?.sizeMin || '');
+  const [sizeMax, setSizeMax] = useState(cached?.sizeMax || '');
+
+  const [result, setResult] = useState<SearchResult | null>(cached?.result || null);
+  const [loading, setLoading] = useState(!cached?.result);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
-  // Restore scroll position before paint (no visible jump)
+  const restoredRef = useRef(false);
+
   useLayoutEffect(() => {
-    if (!loading && result) {
+    if (!restoredRef.current) {
+      restoredRef.current = true;
       const saved = sessionStorage.getItem('search_scroll');
       if (saved) {
         window.scrollTo(0, Number(saved));
         sessionStorage.removeItem('search_scroll');
       }
     }
-  }, [loading, result]);
+  });
 
   useEffect(() => {
     api.getBuildingBlockList().then(setBbList);
@@ -74,10 +82,14 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [name, buildingBlock, morphology, drivingForce, assemblyType, assemblyDriveMethod, appFilter, sizeMin, sizeMax]);
+  }, [name, buildingBlock, morphology, drivingForce, assemblyType, assemblyDriveMethod, appFilter, sizeMin, sizeMax, setSearchParams]);
 
   const initialPage = Number(new URLSearchParams(window.location.search).get('page')) || 1;
-  useEffect(() => { doSearch(initialPage); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (cached?.result && cached.page === initialPage) return; // already loaded from cache
+    doSearch(initialPage);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalPages = result ? Math.ceil(result.total / result.page_size) : 0;
 
@@ -90,11 +102,29 @@ export default function SearchPage() {
     return parts.join(' · ');
   };
 
+  const saveCacheAndScroll = () => {
+    sessionStorage.setItem('search_scroll', String(window.scrollY));
+    sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify({
+      page, name, appFilter, buildingBlock, assemblyType,
+      showAdvanced, morphology, drivingForce, assemblyDriveMethod,
+      sizeMin, sizeMax, result,
+    }));
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">
         {tr('searchTitle')}
       </h1>
+
+      {/* Loading indicator when showing stale data */}
+      {loading && result && (
+        <div className="fixed top-14 left-0 right-0 z-10 flex justify-center">
+          <div className="bg-blue-600 text-white text-xs px-3 py-1 rounded-b-md shadow-md opacity-80">
+            {tr('refreshing') || '...'}
+          </div>
+        </div>
+      )}
 
       {/* Search & Filters */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6">
@@ -213,8 +243,8 @@ export default function SearchPage() {
         )}
       </div>
 
-      {/* Loading skeleton */}
-      {loading && (
+      {/* Loading skeleton (only when no cached data) */}
+      {!result && loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
@@ -227,7 +257,7 @@ export default function SearchPage() {
       )}
 
       {/* Results - Card Grid */}
-      {result && !loading && (
+      {result && (
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
             {tr('foundResults', { total: result.total })}
@@ -239,7 +269,7 @@ export default function SearchPage() {
               <Link
                 key={a.id}
                 to={`/assembly/${a.id}`}
-                onClick={() => sessionStorage.setItem('search_scroll', String(window.scrollY))}
+                onClick={saveCacheAndScroll}
                 className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all group"
               >
                 {/* Compound Image */}
