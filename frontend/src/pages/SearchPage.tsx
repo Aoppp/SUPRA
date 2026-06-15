@@ -65,7 +65,8 @@ export default function SearchPage() {
     }
   }, [name, buildingBlock, morphology, drivingForce, assemblyType, assemblyDriveMethod, appFilter, sizeMin, sizeMax]);
 
-  useEffect(() => { doSearch(1); }, []);
+  const initialPage = Number(new URLSearchParams(window.location.search).get('page')) || 1;
+  useEffect(() => { doSearch(initialPage); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalPages = result ? Math.ceil(result.total / result.page_size) : 0;
 
