@@ -301,8 +301,6 @@ async def batch_create_assemblies(file: UploadFile = File(...), db: Session = De
 
         if any(v for v in row.values()):
             rows.append(row)
-        if any(v for v in row.values()):
-            rows.append(row)
 
     if not rows:
         raise HTTPException(status_code=400, detail="No data rows found in Excel file")
@@ -316,6 +314,11 @@ def delete_assembly(assembly_id: int, db: Session = Depends(get_db)):
     a = crud.get_assembly_detail(db, assembly_id)
     if not a:
         raise HTTPException(status_code=404, detail="Assembly not found")
+    # Clean up image file if stored locally
+    if a.compound_image and a.compound_image.startswith("/images/"):
+        img_path = os.path.join(IMAGES_DIR, os.path.basename(a.compound_image))
+        if os.path.exists(img_path):
+            os.remove(img_path)
     db.delete(a)
     db.commit()
     return {"ok": True}

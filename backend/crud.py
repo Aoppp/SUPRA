@@ -241,13 +241,11 @@ def _parse_size_range(size_text: str) -> tuple[float | None, float | None]:
 
 def batch_create_assemblies(db: Session, rows: list[dict]):
     """Create assemblies from parsed Excel rows (new 53-column format).
-    Clears existing Assembly data before import.
+    Replaces existing Assembly data on success; rolls back entirely on total failure.
     Returns (created_count, error_rows).
     """
-    # Clear existing assemblies
-    db.query(Assembly).delete()
-    db.commit()
-
+    old_ids = {a.id for a in db.query(Assembly).all()}
+    new_ids: list[int] = []
     created = 0
     errors: list[dict] = []
 
@@ -381,11 +379,14 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
             )
             db.add(assembly)
             db.flush()
+            new_ids.append(assembly.id)
             created += 1
         except Exception as e:
             errors.append({"row": i + 1, "error": str(e)})
 
     if created > 0:
+        # Replace old assemblies (but keep new ones) in a single transaction
+        db.query(Assembly).filter(Assembly.id.in_(old_ids)).delete(synchronize_session='fetch')
         db.commit()
     return created, errors
 
