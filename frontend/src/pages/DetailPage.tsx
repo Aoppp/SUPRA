@@ -132,7 +132,7 @@ export default function DetailPage() {
       {/* Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        {/* 🧬 Molecular Information */}
+        {/* Molecular Information */}
         <Section title={tr('moleculeInfo')}>
           {data.smiles && (
             <div className="flex justify-center mb-3 p-2 bg-white rounded border border-slate-100 dark:border-slate-700">
@@ -162,7 +162,7 @@ export default function DetailPage() {
           </dl>
         </Section>
 
-        {/* 🏷️ Application Classification */}
+        {/* Application Classification */}
         <Section title={tr('applicationClassification')}>
           <div className="flex flex-wrap gap-2 mb-3">
             {data.is_food && <Tag color="blue">{tr('categoryFood')}</Tag>}
@@ -187,7 +187,7 @@ export default function DetailPage() {
           )}
         </Section>
 
-        {/* 🔬 Assembly Parameters */}
+        {/* Assembly Parameters */}
         <Section title={tr('assemblyParameters')}>
           <dl className="space-y-0.5">
             <Field label={tr('assemblyDriveMethod')}>{data.assembly_drive_method?.name}</Field>
@@ -207,7 +207,7 @@ export default function DetailPage() {
           )}
         </Section>
 
-        {/* 🧪 Solvent System */}
+        {/* Solvent System */}
         <Section title={tr('solventSystem')}>
           <dl className="space-y-0.5">
             <Field label={tr('aqueousPhase')}>{data.aqueous_phase}</Field>
@@ -218,7 +218,7 @@ export default function DetailPage() {
           </dl>
         </Section>
 
-        {/* 📐 Physical Properties */}
+        {/* Physical Properties */}
         <Section title={tr('physicalProperties')}>
           <dl className="space-y-0.5">
             <Field label={tr('particleSizeCol')}>{data.particle_size}</Field>
@@ -234,7 +234,7 @@ export default function DetailPage() {
           </dl>
         </Section>
 
-        {/* 🧫 Biological Activity & Methods */}
+        {/* Biological Activity & Methods */}
         <Section title={tr('biologicalActivity')} span>
           {data.biological_activity ? (
             <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">{data.biological_activity}</p>
@@ -251,14 +251,14 @@ export default function DetailPage() {
           )}
         </Section>
 
-        {/* 📋 Methods */}
+        {/* Methods */}
         <Section title={tr('preparationMethod')} span>
           {data.preparation_method ? (
             <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">{data.preparation_method}</p>
           ) : <p className="text-sm text-slate-400">{tr('noData')}</p>}
         </Section>
 
-        {/* 📋 Other Info */}
+        {/* Other Info */}
         <Section title={tr('experimentalData')} span>
           <dl className="space-y-0.5">
             <Field label={tr('stirringCondition')}>{data.stirring_condition}</Field>

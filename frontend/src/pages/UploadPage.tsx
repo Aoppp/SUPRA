@@ -466,7 +466,7 @@ export default function UploadPage() {
 
               {/* 2. 分子信息 */}
               <div>
-                <SectionTitle title="🧬 分子信息" expanded={showMolecular} onToggle={() => setShowMolecular(!showMolecular)} />
+                <SectionTitle title="分子信息" expanded={showMolecular} onToggle={() => setShowMolecular(!showMolecular)} />
                 {showMolecular && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mt-2">
                     <Field label="分子特征参数" span>
@@ -479,7 +479,7 @@ export default function UploadPage() {
 
               {/* 3. 应用分类 */}
               <div>
-                <SectionTitle title="🏷️ 应用分类" expanded={showApp} onToggle={() => setShowApp(!showApp)} />
+                <SectionTitle title="应用分类" expanded={showApp} onToggle={() => setShowApp(!showApp)} />
                 {showApp && (
                   <div className="space-y-3 mt-2">
                     <div className="flex flex-wrap gap-4">
@@ -531,7 +531,7 @@ export default function UploadPage() {
 
               {/* 4. 组装参数 */}
               <div>
-                <SectionTitle title="🔬 组装参数" expanded={showAssembly} onToggle={() => setShowAssembly(!showAssembly)} />
+                <SectionTitle title="组装参数" expanded={showAssembly} onToggle={() => setShowAssembly(!showAssembly)} />
                 {showAssembly && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mt-2">
                     <Field label="驱动方式">
@@ -590,7 +590,7 @@ export default function UploadPage() {
 
               {/* 5. 溶剂体系 */}
               <div>
-                <SectionTitle title="🧪 溶剂体系" expanded={showSolvent} onToggle={() => setShowSolvent(!showSolvent)} />
+                <SectionTitle title="溶剂体系" expanded={showSolvent} onToggle={() => setShowSolvent(!showSolvent)} />
                 {showSolvent && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mt-2">
                     <Field label="水相">
@@ -619,7 +619,7 @@ export default function UploadPage() {
 
               {/* 6. 物理性质 */}
               <div>
-                <SectionTitle title="📐 物理性质" expanded={showPhysical} onToggle={() => setShowPhysical(!showPhysical)} />
+                <SectionTitle title="物理性质" expanded={showPhysical} onToggle={() => setShowPhysical(!showPhysical)} />
                 {showPhysical && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mt-2">
                     <Field label="粒径">
@@ -664,7 +664,7 @@ export default function UploadPage() {
 
               {/* 7. 生物活性 */}
               <div>
-                <SectionTitle title="🧫 生物活性与方法" expanded={showBio} onToggle={() => setShowBio(!showBio)} />
+                <SectionTitle title="生物活性与方法" expanded={showBio} onToggle={() => setShowBio(!showBio)} />
                 {showBio && (
                   <div className="space-y-4 mt-2">
                     <Field label="生物活性" span>
@@ -687,7 +687,7 @@ export default function UploadPage() {
 
               {/* 8. 其他信息 */}
               <div>
-                <SectionTitle title="📋 其他信息" expanded={showOther} onToggle={() => setShowOther(!showOther)} />
+                <SectionTitle title="其他信息" expanded={showOther} onToggle={() => setShowOther(!showOther)} />
                 {showOther && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mt-2">
                     <Field label="搅拌条件">
