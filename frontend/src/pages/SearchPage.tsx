@@ -46,7 +46,7 @@ export default function SearchPage() {
       restoredRef.current = true;
       const saved = sessionStorage.getItem('search_scroll');
       if (saved) {
-        window.scrollTo(0, Number(saved));
+        window.scrollTo({ top: Number(saved), behavior: 'instant' });
         sessionStorage.removeItem('search_scroll');
       }
     }

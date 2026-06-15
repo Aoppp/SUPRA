@@ -31,7 +31,7 @@ export default function BrowsePage() {
       restoredRef.current = true;
       const saved = sessionStorage.getItem('browse_scroll');
       if (saved) {
-        window.scrollTo(0, Number(saved));
+        window.scrollTo({ top: Number(saved), behavior: 'instant' });
         sessionStorage.removeItem('browse_scroll');
       }
     }
