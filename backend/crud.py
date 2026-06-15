@@ -123,7 +123,16 @@ def search_assemblies(db: Session, params: SearchParams):
 
 
 def create_assembly(db: Session, data: AssemblyCreate):
-    a = Assembly(**data.model_dump(exclude_unset=True))
+    dump = data.model_dump(exclude_unset=True)
+    df_ids = dump.pop("driving_force_ids", None)
+    prop_ids = dump.pop("property_ids", None)
+    a = Assembly(**dump)
+    if df_ids:
+        dfs = db.query(DrivingForce).filter(DrivingForce.id.in_(df_ids)).all()
+        a.driving_forces = dfs
+    if prop_ids:
+        props = db.query(Property).filter(Property.id.in_(prop_ids)).all()
+        a.properties = props
     db.add(a)
     db.commit()
     db.refresh(a)

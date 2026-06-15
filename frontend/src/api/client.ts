@@ -1,4 +1,4 @@
-import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress } from '../types';
+import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, CharacterizationMethod, WorkProgress } from '../types';
 
 const BASE = '/api';
 
@@ -36,8 +36,24 @@ export function getPropertyList() {
   return get<Property[]>('/properties');
 }
 
+export function getCharacterizationMethodList() {
+  return get<CharacterizationMethod[]>('/characterization-methods');
+}
+
 export function getAssemblyDriveMethodList() {
   return get<AssemblyDriveMethod[]>('/assembly-drive-methods');
+}
+
+export function uploadImage(file: File) {
+  const fd = new FormData();
+  fd.set('file', file);
+  return fetch(BASE + '/upload-image', {
+    method: 'POST',
+    body: fd,
+  }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<{ path: string }>;
+  });
 }
 
 export function createAssembly(data: Record<string, unknown>) {

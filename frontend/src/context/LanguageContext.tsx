@@ -10,7 +10,7 @@ interface LanguageCtx {
 const LanguageContext = createContext<LanguageCtx | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useState<Lang>('zh');
 
   const toggleLang = useCallback(() => {
     setLang(prev => (prev === 'en' ? 'zh' : 'en'));

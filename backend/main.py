@@ -116,6 +116,11 @@ def list_properties(db: Session = Depends(get_db)):
     return crud.get_property_list(db)
 
 
+@app.get("/api/characterization-methods", response_model=list[schemas.CharacterizationMethodOut])
+def list_characterization_methods(db: Session = Depends(get_db)):
+    return crud.get_characterization_method_list(db)
+
+
 @app.get("/api/assembly-drive-methods", response_model=list[schemas.AssemblyDriveMethodOut])
 def list_assembly_drive_methods(db: Session = Depends(get_db)):
     return crud.get_assembly_drive_method_list(db)
@@ -124,6 +129,24 @@ def list_assembly_drive_methods(db: Session = Depends(get_db)):
 @app.post("/api/assemblies", response_model=schemas.AssemblyDetail)
 def create_assembly(data: schemas.AssemblyCreate, db: Session = Depends(get_db)):
     return crud.create_assembly(db, data)
+
+
+IMAGES_DIR = os.path.join(os.path.dirname(__file__), "data", "images")
+os.makedirs(IMAGES_DIR, exist_ok=True)
+
+
+@app.post("/api/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    """Upload a single image file, return the path."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file selected")
+    ext = os.path.splitext(file.filename)[1] or ".png"
+    import uuid
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    dest = os.path.join(IMAGES_DIR, safe_name)
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"path": f"/images/{safe_name}"}
 
 
 @app.post("/api/assemblies/batch")
@@ -141,23 +164,149 @@ async def batch_create_assemblies(file: UploadFile = File(...), db: Session = De
     if ws.max_row < 4:
         raise HTTPException(status_code=400, detail="Excel file has no data rows")
 
+    # --- Extract embedded images ---
+    row_images: dict[int, list[tuple[bytes, str]]] = {}
+
+    # Primary: use openpyxl _images
+    for img in ws._images:
+        img_data = img._data()
+        img_fmt = img.format or "png"
+        af = img.anchor._from
+        at = img.anchor.to if hasattr(img.anchor, "to") else None
+        from_excel = af.row + 1
+        to_excel = (at.row + 1) if at else from_excel
+        for r in range(from_excel, to_excel + 1):
+            row_images.setdefault(r, []).append((img_data, img_fmt))
+
+    # Fallback: extract directly from ZIP (fixes Linux openpyxl bug)
+    if not row_images:
+        import zipfile
+        from xml.etree import ElementTree as ET
+        with zipfile.ZipFile(io.BytesIO(contents)) as z:
+            drawing_rels = {}
+            rels_path = "xl/drawings/_rels/drawing1.xml.rels"
+            if rels_path in z.namelist():
+                ns = {"r": "http://schemas.openxmlformats.org/package/2006/relationships"}
+                tree = ET.fromstring(z.read(rels_path))
+                for rel in tree:
+                    rid = rel.get("Id")
+                    target = rel.get("Target")
+                    if target and "image" in target.lower():
+                        drawing_rels[rid] = target.replace("../media/", "")
+
+            drawing_path = "xl/drawings/drawing1.xml"
+            if drawing_path in z.namelist():
+                ns = {
+                    "xdr": "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing",
+                    "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+                }
+                tree = ET.fromstring(z.read(drawing_path))
+                for anchor in tree.iter("{%s}twoCellAnchor" % ns["xdr"]):
+                    from_el = anchor.find("xdr:from", ns)
+                    to_el = anchor.find("xdr:to", ns)
+                    if from_el is None:
+                        continue
+                    from_row = int(from_el.find("xdr:row", ns).text)
+                    to_row = (int(to_el.find("xdr:row", ns).text) + 1) if to_el is not None else from_row + 1
+                    for r in range(from_row + 1, to_row + 1):
+                        for blip in anchor.iter("{%s}blip" % ns["a"]):
+                            embed = blip.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed")
+                            if embed and embed in drawing_rels:
+                                media_file = drawing_rels[embed]
+                                img_bytes = z.read(f"xl/media/{media_file}")
+                                fmt = media_file.rsplit(".", 1)[-1]
+                                row_images.setdefault(r, []).append((img_bytes, fmt))
+
     # Build column mapping from 3-row header
-    # Row 1: category, Row 2: sub-header, Row 3: detail
-    # Some columns have merged cells so value may be on row 2 or 3
     header_map: dict[int, str] = {}
     for c in range(1, ws.max_column + 1):
-        # Use deepest available header value
         val = ws.cell(row=3, column=c).value or ws.cell(row=2, column=c).value or ws.cell(row=1, column=c).value
         key = str(val).strip() if val else f"col_{c}"
         header_map[c] = key
+
+    # Normalize Chinese headers to English field names
+    CH_HEADER_MAP = {
+        "化合物名称": "name",
+        "化合物英文名": "english_name",
+        "英文名": "english_name",
+        "化合物图片": "compound_image",
+        "分子结构图": "compound_image",
+        "SMILES": "smiles",
+        "CAS号": "cas_number",
+        "CAS": "cas_number",
+        "组装体类型": "assembly_type",
+        "粒径": "particle_size",
+        "水相": "aqueous_phase",
+        "有机相": "organic_phase",
+        "溶质": "solute",
+        "浓度": "concentration",
+        "组分比例": "component_ratio",
+        "制备方法": "preparation_method",
+        "最小粒径": "size_nm_min",
+        "最大粒径": "size_nm_max",
+        "粒径备注": "size_note",
+        "粒径来源": "size_source",
+        "DOI": "doi",
+        "生物活性": "biological_activity",
+        "组装温度": "assembly_temperature",
+        "温度备注": "temperature_note",
+        "pH值": "ph_value",
+        "pH": "ph_value",
+        "pH备注": "ph_note",
+        "搅拌条件": "stirring_condition",
+        "搅拌": "stirring_condition",
+        "组装时间": "assembly_time",
+        "分子特征": "molecular_characteristics",
+        "分子特征参数": "molecular_characteristics",
+        "备注": "notes",
+        "化妆品": "is_cosmetic",
+        "化妆品备注": "cosmetic_note",
+        "药品": "is_drug",
+        "药品备注": "drug_note",
+        "食品": "is_food",
+        "食品备注": "food_note",
+        "食品类别": "food_category",
+        "每日摄入量": "food_daily_intake",
+        "法规": "regulations",
+        "法规信息": "regulations",
+        "组分数": "component_count",
+        "响应性": "responsiveness",
+        "表面修饰": "surface_modification",
+        "外部链接": "url",
+        "网址": "url",
+        "化合物类型": "building_block",
+        "构建基元": "building_block",
+        "形貌": "morphology",
+        "表征方法": "characterization_method",
+        "驱动方式": "assembly_drive_method",
+        "组装驱动方式": "assembly_drive_method",
+        "驱动力": "driving_forces",
+        "性质": "properties",
+        "化合物浓度": "concentration",
+    }
 
     rows: list[dict] = []
     for r in range(4, ws.max_row + 1):
         row: dict[str, str] = {}
         for c in range(1, ws.max_column + 1):
             key = header_map.get(c, f"col_{c}")
+            # Normalize Chinese headers
+            key = CH_HEADER_MAP.get(key, key)
             val = ws.cell(row=r, column=c).value
             row[key] = str(val).strip() if val is not None else ""
+
+        # Attach image if present for this row
+        if r in row_images:
+            imgs = row_images[r]
+            img_bytes, fmt = imgs[0]
+            safe_name = f"batch_{r}.{fmt}"
+            dest = os.path.join(IMAGES_DIR, safe_name)
+            with open(dest, "wb") as f:
+                f.write(img_bytes)
+            row["compound_image"] = f"/images/{safe_name}"
+
+        if any(v for v in row.values()):
+            rows.append(row)
         if any(v for v in row.values()):
             rows.append(row)
 
@@ -260,10 +409,19 @@ def structure_image(assembly_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="RDKit not available")
 
 
-# Serve uploaded files
+# Serve uploaded files and images
 @app.get("/uploads/{filepath:path}")
 def serve_upload(filepath: str):
     path = os.path.join(crud.UPLOAD_DIR, filepath)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404)
+    from fastapi.responses import FileResponse
+    return FileResponse(path)
+
+
+@app.get("/images/{filepath:path}")
+def serve_image(filepath: str):
+    path = os.path.join(IMAGES_DIR, filepath)
     if not os.path.exists(path):
         raise HTTPException(status_code=404)
     from fastapi.responses import FileResponse

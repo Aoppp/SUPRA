@@ -212,6 +212,8 @@ class AssemblyCreate(BaseModel):
     morphology_id: Optional[int] = None
     characterization_method_id: Optional[int] = None
     assembly_drive_method_id: Optional[int] = None
+    driving_force_ids: Optional[list[int]] = None
+    property_ids: Optional[list[int]] = None
 
 
 class WorkProgressOut(BaseModel):
