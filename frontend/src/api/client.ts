@@ -1,4 +1,4 @@
-import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress } from '../types';
+import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress, VisitListResult, AdminStats, TopMolecule } from '../types';
 
 const BASE = '/api';
 
@@ -105,4 +105,83 @@ export function uploadWorkProgress(data: FormData) {
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json() as Promise<WorkProgress>;
   });
+}
+
+// ── Admin ──────────────────────────────────────────────
+
+function getToken(): string | null {
+  return localStorage.getItem('admin_token');
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
+export function adminLogin(password: string) {
+  return fetch(BASE + '/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  }).then(res => {
+    if (!res.ok) throw new Error(`Login failed: ${res.status}`);
+    return res.json() as Promise<{ token: string }>;
+  });
+}
+
+export function isLoggedIn(): boolean {
+  return !!getToken();
+}
+
+export function logout() {
+  localStorage.removeItem('admin_token');
+}
+
+export function getAdminStats() {
+  return fetch(BASE + '/admin/stats', { headers: authHeaders() }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<AdminStats>;
+  });
+}
+
+export function getAdminVisits(page = 1, pageSize = 20, dateFrom?: string, dateTo?: string) {
+  const qs = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (dateFrom) qs.set('date_from', dateFrom);
+  if (dateTo) qs.set('date_to', dateTo);
+  return fetch(BASE + `/admin/visits?${qs.toString()}`, { headers: authHeaders() }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<VisitListResult>;
+  });
+}
+
+export function getTopMolecules(n = 20) {
+  return fetch(BASE + `/admin/top-molecules?n=${n}`, { headers: authHeaders() }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<TopMolecule[]>;
+  });
+}
+
+export async function downloadExportVisits() {
+  const res = await fetch(BASE + '/admin/export-visits', { headers: authHeaders() });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'visit_logs.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadExportMoleculeStats() {
+  const res = await fetch(BASE + '/admin/export-molecule-stats', { headers: authHeaders() });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'molecule_stats.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }

@@ -3,6 +3,7 @@ from models import Assembly, BuildingBlock, DrivingForce, Morphology, Property, 
 from schemas import SearchParams, AssemblyCreate, WorkProgressCreate
 import os
 import re
+from datetime import date, timedelta
 
 
 def get_building_block_list(db: Session):
@@ -393,3 +394,102 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "data", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def increment_view_count(db: Session, assembly_id: int):
+    a = db.query(Assembly).filter(Assembly.id == assembly_id).first()
+    if a:
+        a.view_count = (a.view_count or 0) + 1
+        db.commit()
+
+
+def log_visit(db: Session, ip: str, path: str, ua: str | None = None, referer: str | None = None):
+    from models import VisitLog
+    v = VisitLog(ip_address=ip, path=path, user_agent=ua, referer=referer)
+    db.add(v)
+    db.commit()
+
+
+def get_visits(
+    db: Session,
+    page: int = 1,
+    page_size: int = 20,
+    date_from: str | None = None,
+    date_to: str | None = None,
+):
+    from models import VisitLog
+    from sqlalchemy import func as sa_func
+    q = db.query(VisitLog)
+    if date_from:
+        q = q.filter(sa_func.date(VisitLog.created_at) >= date_from)
+    if date_to:
+        q = q.filter(sa_func.date(VisitLog.created_at) <= date_to)
+    total = q.count()
+    results = q.order_by(VisitLog.created_at.desc()) \
+        .offset((page - 1) * page_size) \
+        .limit(page_size).all()
+    return total, results
+
+
+def get_admin_stats(db: Session):
+    from models import VisitLog
+    from sqlalchemy import func as sa_func, distinct
+
+    today = date.today()
+
+    total_visits = db.query(sa_func.count(VisitLog.id)).scalar() or 0
+    unique_ips = db.query(sa_func.count(distinct(VisitLog.ip_address))).scalar() or 0
+    today_visits = db.query(sa_func.count(VisitLog.id)) \
+        .filter(sa_func.date(VisitLog.created_at) == today).scalar() or 0
+    today_unique = db.query(sa_func.count(distinct(VisitLog.ip_address))) \
+        .filter(sa_func.date(VisitLog.created_at) == today).scalar() or 0
+    total_assemblies = db.query(sa_func.count(Assembly.id)).scalar() or 0
+    total_views = db.query(sa_func.sum(Assembly.view_count)).scalar() or 0
+
+    # Daily trend for last 7 days
+    trend = []
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        count = db.query(sa_func.count(VisitLog.id)) \
+            .filter(sa_func.date(VisitLog.created_at) == d).scalar() or 0
+        trend.append({"date": d.isoformat(), "count": count})
+
+    return dict(
+        total_visits=total_visits,
+        unique_ips=unique_ips,
+        today_visits=today_visits,
+        today_unique_ips=today_unique,
+        total_assemblies=total_assemblies,
+        total_molecule_views=total_views,
+        daily_trend=trend,
+    )
+
+
+def get_top_molecules(db: Session, n: int = 20):
+    return db.query(Assembly) \
+        .order_by(Assembly.view_count.desc()) \
+        .limit(n).all()
+
+
+def export_visits_csv(db: Session):
+    from models import VisitLog
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "IP地址", "访问路径", "User-Agent", "Referer", "时间"])
+    for v in db.query(VisitLog).order_by(VisitLog.created_at.desc()).all():
+        writer.writerow([v.id, v.ip_address, v.path, v.user_agent or "", v.referer or "",
+                          v.created_at.isoformat() if v.created_at else ""])
+    return output.getvalue()
+
+
+def export_molecule_stats_csv(db: Session):
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "化合物名称", "英文名", "CAS号", "查看次数"])
+    for a in db.query(Assembly).order_by(Assembly.view_count.desc()).all():
+        writer.writerow([a.id, a.name, a.english_name or "", a.cas_number or "", a.view_count or 0])
+    return output.getvalue()

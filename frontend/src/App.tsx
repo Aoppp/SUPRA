@@ -9,6 +9,7 @@ const DetailPage = lazy(() => import('./pages/DetailPage'));
 const BrowsePage = lazy(() => import('./pages/BrowsePage'));
 const UploadPage = lazy(() => import('./pages/UploadPage'));
 const WorkbenchPage = lazy(() => import('./pages/WorkbenchPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 function PageSkeleton() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
                 <Route path="/browse" element={<BrowsePage />} />
                 <Route path="/upload" element={<UploadPage />} />
                 <Route path="/workbench" element={<WorkbenchPage />} />
+                <Route path="/admin" element={<AdminPage />} />
               </Route>
             </Routes>
           </Suspense>

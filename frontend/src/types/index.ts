@@ -71,6 +71,7 @@ export interface AssemblyDetail {
   id: number;
   name: string;
   english_name?: string;
+  view_count?: number;
   compound_image?: string;
   smiles?: string;
   cas_number?: string;
@@ -133,4 +134,37 @@ export interface WorkProgress {
   file_type?: string;
   description?: string;
   created_at?: string;
+}
+
+export interface VisitLog {
+  id: number;
+  ip_address: string;
+  path: string;
+  user_agent?: string;
+  referer?: string;
+  created_at?: string;
+}
+
+export interface VisitListResult {
+  total: number;
+  page: number;
+  page_size: number;
+  results: VisitLog[];
+}
+
+export interface AdminStats {
+  total_visits: number;
+  unique_ips: number;
+  today_visits: number;
+  today_unique_ips: number;
+  total_assemblies: number;
+  total_molecule_views: number;
+  daily_trend: { date: string; count: number }[];
+}
+
+export interface TopMolecule {
+  id: number;
+  name: string;
+  view_count: number;
+  english_name?: string;
 }

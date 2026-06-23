@@ -113,6 +113,9 @@ export default function DetailPage() {
           {data.english_name && (
             <p className="text-sm text-slate-400 dark:text-slate-500 italic mt-1">{data.english_name}</p>
           )}
+          {data.view_count != null && (
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Viewed {data.view_count} times</p>
+          )}
           {catLabel() && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {data.foodmate_url ? (

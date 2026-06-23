@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Query, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, Query, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -9,10 +9,12 @@ from datetime import datetime
 
 import openpyxl
 
-from database import engine, Base, get_db
+from database import engine, Base, get_db, SessionLocal
 
 import crud
 import schemas
+import auth
+from models import VisitLog
 
 app = FastAPI(title="SUPRA API", description="Supramolecular Assembly Database API", version="0.2.0")
 
@@ -30,9 +32,38 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def visit_log_middleware(request: Request, call_next):
+    if request.url.path.startswith("/api/") and not request.url.path.startswith("/api/admin/"):
+        db = SessionLocal()
+        try:
+            ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+            if "," in ip:
+                ip = ip.split(",")[0].strip()
+            referer = request.headers.get("referer")
+            ua = request.headers.get("user-agent")
+            crud.log_visit(db, ip, request.url.path, ua, referer)
+        except Exception:
+            pass
+        finally:
+            db.close()
+    response = await call_next(request)
+    return response
+
+
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    # Migrate existing assemblies table: add view_count column if missing
+    try:
+        import sqlite3
+        conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), "data", "dolphin.db"))
+        cols = [c[1] for c in conn.execute("PRAGMA table_info(assemblies)").fetchall()]
+        if "view_count" not in cols:
+            conn.execute("ALTER TABLE assemblies ADD COLUMN view_count INTEGER DEFAULT 0")
+            conn.commit()
+    except Exception:
+        pass  # not SQLite or DB doesn't exist yet
 
 
 @app.get("/api/health")
@@ -90,6 +121,7 @@ def get_assembly(assembly_id: int, db: Session = Depends(get_db)):
     a = crud.get_assembly_detail(db, assembly_id)
     if not a:
         raise HTTPException(status_code=404, detail="Assembly not found")
+    crud.increment_view_count(db, assembly_id)
     result = schemas.AssemblyDetail.model_validate(a)
     result.category = crud.compute_category(a)
     result.foodmate_url = crud.compute_foodmate_url(a)
@@ -423,3 +455,61 @@ def serve_image(filepath: str):
         raise HTTPException(status_code=404)
     from fastapi.responses import FileResponse
     return FileResponse(path)
+
+
+# ── Admin routes ──────────────────────────────────────────────
+
+@app.post("/api/admin/login")
+def admin_login(data: schemas.LoginRequest):
+    if not auth.verify_password(data.password):
+        raise HTTPException(status_code=403, detail="Wrong password")
+    token = auth.create_token()
+    return {"token": token}
+
+
+@app.get("/api/admin/visits", dependencies=[Depends(auth.require_admin)])
+def admin_visits(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    total, results = crud.get_visits(db, page, page_size, date_from, date_to)
+    items = [schemas.VisitLogOut.model_validate(r) for r in results]
+    return schemas.VisitListResult(
+        total=total, page=page, page_size=page_size, results=items,
+    )
+
+
+@app.get("/api/admin/stats", dependencies=[Depends(auth.require_admin)])
+def admin_stats(db: Session = Depends(get_db)):
+    return crud.get_admin_stats(db)
+
+
+@app.get("/api/admin/top-molecules", dependencies=[Depends(auth.require_admin)])
+def admin_top_molecules(n: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)):
+    results = crud.get_top_molecules(db, n)
+    return [schemas.TopMolecule.model_validate(r) for r in results]
+
+
+@app.get("/api/admin/export-visits", dependencies=[Depends(auth.require_admin)])
+def export_visits(db: Session = Depends(get_db)):
+    from fastapi.responses import PlainTextResponse
+    csv_data = crud.export_visits_csv(db)
+    return PlainTextResponse(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=visit_logs.csv"},
+    )
+
+
+@app.get("/api/admin/export-molecule-stats", dependencies=[Depends(auth.require_admin)])
+def export_molecule_stats(db: Session = Depends(get_db)):
+    from fastapi.responses import PlainTextResponse
+    csv_data = crud.export_molecule_stats_csv(db)
+    return PlainTextResponse(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=molecule_stats.csv"},
+    )

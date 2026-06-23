@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text, Boolean, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from database import Base
 from datetime import datetime
 
@@ -127,6 +128,9 @@ class Assembly(Base):
     # External links
     url = Column(String(500))
 
+    # View count
+    view_count = Column(Integer, default=0)
+
     building_block_id = Column(Integer, ForeignKey("building_blocks.id"))
     morphology_id = Column(Integer, ForeignKey("morphologies.id"))
     characterization_method_id = Column(Integer, ForeignKey("characterization_methods.id"))
@@ -151,3 +155,13 @@ class WorkProgress(Base):
     file_type = Column(String(50))
     description = Column(Text)
     created_at = Column(String(50), default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M"))
+
+
+class VisitLog(Base):
+    __tablename__ = "visit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String(50), nullable=False)
+    path = Column(String(300), nullable=False)
+    user_agent = Column(String(500))
+    referer = Column(String(500))
+    created_at = Column(DateTime, server_default=func.now())

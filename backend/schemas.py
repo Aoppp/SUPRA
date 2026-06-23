@@ -1,6 +1,6 @@
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 
 class BuildingBlockOut(BaseModel):
@@ -128,6 +128,9 @@ class AssemblyDetail(BaseModel):
     # External links
     url: Optional[str] = None
 
+    # Stats
+    view_count: Optional[int] = 0
+
     building_block: Optional[BuildingBlockOut] = None
     morphology: Optional[MorphologyOut] = None
     assembly_drive_method: Optional[AssemblyDriveMethodOut] = None
@@ -230,3 +233,46 @@ class WorkProgressCreate(BaseModel):
     file_name: str
     file_type: Optional[str] = None
     description: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+class TokenResponse(BaseModel):
+    token: str
+
+
+class VisitLogOut(BaseModel):
+    id: int
+    ip_address: str
+    path: str
+    user_agent: Optional[str] = None
+    referer: Optional[str] = None
+    created_at: Optional[datetime] = None
+    model_config = {"from_attributes": True}
+
+
+class VisitListResult(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    results: list[VisitLogOut]
+
+
+class AdminStats(BaseModel):
+    total_visits: int
+    unique_ips: int
+    today_visits: int
+    today_unique_ips: int
+    total_assemblies: int
+    total_molecule_views: int
+    daily_trend: list[dict]
+
+
+class TopMolecule(BaseModel):
+    id: int
+    name: str
+    view_count: int
+    english_name: Optional[str] = None
+    model_config = {"from_attributes": True}
