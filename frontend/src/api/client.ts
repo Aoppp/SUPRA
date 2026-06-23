@@ -1,4 +1,4 @@
-import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress, VisitListResult, AdminStats, TopMolecule } from '../types';
+import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress, VisitListResult, AdminStats, TopMolecule, TrendData } from '../types';
 
 const BASE = '/api';
 
@@ -138,10 +138,21 @@ export function logout() {
   localStorage.removeItem('admin_token');
 }
 
-export function getAdminStats() {
-  return fetch(BASE + '/admin/stats', { headers: authHeaders() }).then(res => {
+export function getAdminStats(dateFrom?: string, dateTo?: string) {
+  const qs = new URLSearchParams();
+  if (dateFrom) qs.set('date_from', dateFrom);
+  if (dateTo) qs.set('date_to', dateTo);
+  const q = qs.toString();
+  return fetch(BASE + '/admin/stats' + (q ? `?${q}` : ''), { headers: authHeaders() }).then(res => {
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json() as Promise<AdminStats>;
+  });
+}
+
+export function getTrendData(dateFrom: string, dateTo: string) {
+  return fetch(BASE + `/admin/trend?date_from=${dateFrom}&date_to=${dateTo}`, { headers: authHeaders() }).then(res => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<TrendData>;
   });
 }
 

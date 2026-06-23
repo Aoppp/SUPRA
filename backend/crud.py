@@ -431,14 +431,27 @@ def get_visits(
     return total, results
 
 
-def get_admin_stats(db: Session):
+def get_admin_stats(db: Session, date_from: str | None = None, date_to: str | None = None):
     from models import VisitLog
     from sqlalchemy import func as sa_func, distinct
+    from datetime import date as date_type
 
     today = date.today()
 
-    total_visits = db.query(sa_func.count(VisitLog.id)).scalar() or 0
-    unique_ips = db.query(sa_func.count(distinct(VisitLog.ip_address))).scalar() or 0
+    base = db.query(VisitLog)
+    if date_from:
+        base = base.filter(sa_func.date(VisitLog.created_at) >= date_from)
+    if date_to:
+        base = base.filter(sa_func.date(VisitLog.created_at) <= date_to)
+
+    total_visits = base.count()
+    # Count unique IPs within the filtered range
+    ip_q = db.query(distinct(VisitLog.ip_address))
+    if date_from:
+        ip_q = ip_q.filter(sa_func.date(VisitLog.created_at) >= date_from)
+    if date_to:
+        ip_q = ip_q.filter(sa_func.date(VisitLog.created_at) <= date_to)
+    unique_ips = ip_q.count()
     today_visits = db.query(sa_func.count(VisitLog.id)) \
         .filter(sa_func.date(VisitLog.created_at) == today).scalar() or 0
     today_unique = db.query(sa_func.count(distinct(VisitLog.ip_address))) \
@@ -446,7 +459,7 @@ def get_admin_stats(db: Session):
     total_assemblies = db.query(sa_func.count(Assembly.id)).scalar() or 0
     total_views = db.query(sa_func.sum(Assembly.view_count)).scalar() or 0
 
-    # Daily trend for last 7 days
+    # Daily trend for last 7 days (always show recent week)
     trend = []
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
@@ -463,6 +476,27 @@ def get_admin_stats(db: Session):
         total_molecule_views=total_views,
         daily_trend=trend,
     )
+
+
+def get_trend_data(db: Session, date_from: str, date_to: str):
+    from models import VisitLog
+    from sqlalchemy import func as sa_func, distinct
+
+    daily = []
+    d = date.fromisoformat(date_from)
+    end = date.fromisoformat(date_to)
+    while d <= end:
+        day_visits = db.query(sa_func.count(VisitLog.id)) \
+            .filter(sa_func.date(VisitLog.created_at) == d).scalar() or 0
+        day_ips = db.query(sa_func.count(distinct(VisitLog.ip_address))) \
+            .filter(sa_func.date(VisitLog.created_at) == d).scalar() or 0
+        daily.append({
+            "date": d.isoformat(),
+            "visits": day_visits,
+            "unique_ips": day_ips,
+        })
+        d += timedelta(days=1)
+    return daily
 
 
 def get_top_molecules(db: Session, n: int = 20):

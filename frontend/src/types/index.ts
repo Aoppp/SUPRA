@@ -168,3 +168,13 @@ export interface TopMolecule {
   view_count: number;
   english_name?: string;
 }
+
+export interface TrendDailyPoint {
+  date: string;
+  visits: number;
+  unique_ips: number;
+}
+
+export interface TrendData {
+  daily: TrendDailyPoint[];
+}

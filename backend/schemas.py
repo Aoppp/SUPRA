@@ -276,3 +276,13 @@ class TopMolecule(BaseModel):
     view_count: int
     english_name: Optional[str] = None
     model_config = {"from_attributes": True}
+
+
+class TrendDailyPoint(BaseModel):
+    date: str
+    visits: int
+    unique_ips: int
+
+
+class TrendData(BaseModel):
+    daily: list[TrendDailyPoint]

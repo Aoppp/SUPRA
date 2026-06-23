@@ -483,8 +483,22 @@ def admin_visits(
 
 
 @app.get("/api/admin/stats", dependencies=[Depends(auth.require_admin)])
-def admin_stats(db: Session = Depends(get_db)):
-    return crud.get_admin_stats(db)
+def admin_stats(
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    return crud.get_admin_stats(db, date_from, date_to)
+
+
+@app.get("/api/admin/trend", dependencies=[Depends(auth.require_admin)])
+def admin_trend(
+    date_from: str = Query(...),
+    date_to: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    daily = crud.get_trend_data(db, date_from, date_to)
+    return schemas.TrendData(daily=daily)
 
 
 @app.get("/api/admin/top-molecules", dependencies=[Depends(auth.require_admin)])
