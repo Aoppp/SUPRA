@@ -1,4 +1,4 @@
-import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress, VisitListResult, AdminStats, TopMolecule, TrendData } from '../types';
+import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, WorkProgress, VisitListResult, AdminStats, TopMolecule, TrendData, CompoundTypeCount } from '../types';
 
 const BASE = '/api';
 
@@ -38,6 +38,10 @@ export function getPropertyList() {
 
 export function getAssemblyDriveMethodList() {
   return get<AssemblyDriveMethod[]>('/assembly-drive-methods');
+}
+
+export function getCompoundTypes() {
+  return get<CompoundTypeCount[]>('/compound-types');
 }
 
 export function uploadImage(file: File) {

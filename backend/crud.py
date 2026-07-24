@@ -101,6 +101,9 @@ def search_assemblies(db: Session, params: SearchParams):
     if params.surface_modification:
         query = query.filter(Assembly.surface_modification.ilike(f"%{params.surface_modification}%"))
 
+    if params.compound_type:
+        query = query.filter(Assembly.compound_type == params.compound_type)
+
     if params.size_min is not None:
         query = query.filter(Assembly.size_nm_min >= params.size_min)
     if params.size_max is not None:
@@ -331,10 +334,20 @@ def batch_create_assemblies(db: Session, rows: list[dict]):
             def _opt_bool(k):
                 return _parse_bool(row.get(k) or "")
 
+            mw_raw = row.get("molecular_weight")
+            molecular_weight = None
+            if mw_raw:
+                try:
+                    molecular_weight = float(mw_raw)
+                except (TypeError, ValueError):
+                    pass
+
             assembly = Assembly(
                 name=name,
                 english_name=_opt("english_name"),
                 compound_image=_opt("compound_image"),
+                compound_type=_opt("compound_type"),
+                molecular_weight=molecular_weight,
                 smiles=_opt("smiles"),
                 cas_number=_opt("cas_number"),
                 assembly_type=_opt("assembly_type"),
@@ -516,6 +529,19 @@ def export_visits_csv(db: Session):
         writer.writerow([v.id, v.ip_address, v.path, v.user_agent or "", v.referer or "",
                           v.created_at.isoformat() if v.created_at else ""])
     return output.getvalue()
+
+
+def get_compound_type_counts(db: Session):
+    from sqlalchemy import func as sa_func
+    rows = (
+        db.query(Assembly.compound_type, sa_func.count(Assembly.id).label("count"))
+        .filter(Assembly.compound_type.isnot(None))
+        .filter(Assembly.compound_type != "")
+        .group_by(Assembly.compound_type)
+        .order_by(sa_func.count(Assembly.id).desc())
+        .all()
+    )
+    return [{"type": r[0], "count": r[1]} for r in rows]
 
 
 def export_molecule_stats_csv(db: Session):

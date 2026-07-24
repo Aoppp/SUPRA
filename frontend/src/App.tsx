@@ -1,9 +1,11 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 
+const HomePage = lazy(() => import('./pages/HomePage'));
+const CategoryPage = lazy(() => import('./pages/CategoryPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const DetailPage = lazy(() => import('./pages/DetailPage'));
 const BrowsePage = lazy(() => import('./pages/BrowsePage'));
@@ -36,10 +38,12 @@ export default function App() {
           <Suspense fallback={<PageSkeleton />}>
             <Routes>
               <Route element={<Layout />}>
-                <Route path="/" element={<SearchPage />} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/categories/:type" element={<CategoryPage />} />
+                <Route path="/search" element={<SearchPage />} />
                 <Route path="/assembly/:id" element={<DetailPage />} />
                 <Route path="/polysaccharide/:id" element={<DetailPage />} />
-                <Route path="/browse" element={<BrowsePage />} />
+                <Route path="/browse" element={<Navigate to="/search" replace />} />
                 <Route path="/upload" element={<UploadPage />} />
                 <Route path="/workbench" element={<WorkbenchPage />} />
                 <Route path="/admin" element={<AdminPage />} />

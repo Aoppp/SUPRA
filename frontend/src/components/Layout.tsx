@@ -26,10 +26,10 @@ export default function Layout() {
           </div>
           <nav className="flex gap-4 text-sm items-center">
             <Link to="/" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
-              {tr('search')}
+              {tr('home')}
             </Link>
-            <Link to="/browse" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
-              {tr('browse')}
+            <Link to="/search" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
+              {tr('search')}
             </Link>
             <Link to="/upload" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 no-underline transition-colors cursor-pointer">
               {tr('upload')}

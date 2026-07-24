@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import * as api from '../api/client';
 import type { AssemblyDetail } from '../types';
 import { useLang } from '../context/LanguageContext';
@@ -116,9 +116,17 @@ export default function DetailPage() {
           {data.view_count != null && (
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Viewed {data.view_count} times</p>
           )}
-          {catLabel() && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {data.foodmate_url ? (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {data.compound_type && (
+              <Link
+                to={`/categories/${encodeURIComponent(data.compound_type)}`}
+                className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 no-underline hover:opacity-80"
+              >
+                {data.compound_type}
+              </Link>
+            )}
+            {catLabel() && (
+              data.foodmate_url ? (
                 <a href={data.foodmate_url} target="_blank" rel="noopener noreferrer"
                   className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 hover:underline">
                   {catLabel()} ↗
@@ -127,9 +135,9 @@ export default function DetailPage() {
                 <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
                   {catLabel()}
                 </span>
-              )}
-            </div>
-          )}
+              )
+            )}
+          </div>
         </div>
       </div>
 
@@ -140,6 +148,16 @@ export default function DetailPage() {
         <Section title={tr('moleculeInfo')}>
           <dl className="space-y-0.5">
             <Field label="CAS">{data.cas_number}</Field>
+            <Field label={tr('compoundType')}>
+              {data.compound_type ? (
+                <Link to={`/categories/${encodeURIComponent(data.compound_type)}`} className="text-emerald-600 dark:text-emerald-400 hover:underline no-underline">
+                  {data.compound_type}
+                </Link>
+              ) : undefined}
+            </Field>
+            <Field label={tr('molecularWeight')}>
+              {data.molecular_weight ? `${data.molecular_weight} g/mol` : undefined}
+            </Field>
             <Field label={tr('buildingBlockSection')}>{data.building_block?.name}</Field>
             {data.smiles && (
               <div className="py-1">

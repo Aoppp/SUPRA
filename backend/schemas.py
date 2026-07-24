@@ -46,11 +46,18 @@ class AssemblyDriveMethodOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CompoundTypeCount(BaseModel):
+    type: str
+    count: int
+
+
 class AssemblyListItem(BaseModel):
     id: int
     name: str
     english_name: Optional[str] = None
     compound_image: Optional[str] = None
+    compound_type: Optional[str] = None
+    molecular_weight: Optional[float] = None
     smiles: Optional[str] = None
     cas_number: Optional[str] = None
     assembly_type: Optional[str] = None
@@ -84,6 +91,8 @@ class AssemblyDetail(BaseModel):
     name: str
     english_name: Optional[str] = None
     compound_image: Optional[str] = None
+    compound_type: Optional[str] = None
+    molecular_weight: Optional[float] = None
     smiles: Optional[str] = None
     cas_number: Optional[str] = None
     assembly_type: Optional[str] = None
@@ -143,6 +152,7 @@ class AssemblyDetail(BaseModel):
 
 class SearchParams(BaseModel):
     name: Optional[str] = None
+    compound_type: Optional[str] = None
     building_block: Optional[str] = None
     morphology: Optional[str] = None
     driving_force: Optional[str] = None
@@ -173,6 +183,8 @@ class AssemblyCreate(BaseModel):
     name: str
     english_name: Optional[str] = None
     compound_image: Optional[str] = None
+    compound_type: Optional[str] = None
+    molecular_weight: Optional[float] = None
     smiles: Optional[str] = None
     cas_number: Optional[str] = None
     assembly_type: Optional[str] = None

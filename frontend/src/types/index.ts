@@ -35,11 +35,18 @@ export interface AssemblyDriveMethod {
   name: string;
 }
 
+export interface CompoundTypeCount {
+  type: string;
+  count: number;
+}
+
 export interface AssemblyListItem {
   id: number;
   name: string;
   english_name?: string;
   compound_image?: string;
+  compound_type?: string;
+  molecular_weight?: number;
   smiles?: string;
   cas_number?: string;
   assembly_type?: string;
@@ -73,6 +80,8 @@ export interface AssemblyDetail {
   english_name?: string;
   view_count?: number;
   compound_image?: string;
+  compound_type?: string;
+  molecular_weight?: number;
   smiles?: string;
   cas_number?: string;
   assembly_type?: string;

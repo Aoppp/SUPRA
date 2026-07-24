@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
-import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, SearchResult } from '../types';
+import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, SearchResult, CompoundTypeCount } from '../types';
 import { useLang } from '../context/LanguageContext';
 
 const SEARCH_CACHE_KEY = 'search_cache_v1';
@@ -13,6 +13,7 @@ export default function SearchPage() {
   const [morphList, setMorphList] = useState<Morphology[]>([]);
   const [dfList, setDfList] = useState<DrivingForce[]>([]);
   const [dmList, setDmList] = useState<AssemblyDriveMethod[]>([]);
+  const [compoundTypes, setCompoundTypes] = useState<CompoundTypeCount[]>([]);
 
   // Try restore cached state on mount
   const cached = (() => {
@@ -23,7 +24,8 @@ export default function SearchPage() {
   const cachedPage = Number(searchParams.get('page')) || (cached?.page || 1);
   const page = cachedPage;
 
-  const [name, setName] = useState(cached?.name || '');
+  const [name, setName] = useState(() => searchParams.get('name') || cached?.name || '');
+  const [compoundType, setCompoundType] = useState(cached?.compoundType || '');
   const [appFilter, setAppFilter] = useState(cached?.appFilter || '');
   const [buildingBlock, setBuildingBlock] = useState(cached?.buildingBlock || '');
   const [assemblyType, setAssemblyType] = useState(cached?.assemblyType || '');
@@ -57,6 +59,7 @@ export default function SearchPage() {
     api.getMorphologyList().then(setMorphList);
     api.getDrivingForceList().then(setDfList);
     api.getAssemblyDriveMethodList().then(setDmList);
+    api.getCompoundTypes().then(setCompoundTypes);
   }, []);
 
   const doSearch = useCallback(async (pageNum = 1) => {
@@ -64,6 +67,7 @@ export default function SearchPage() {
     try {
       const r = await api.search({
         name: name || undefined,
+        compound_type: compoundType || undefined,
         building_block: buildingBlock || undefined,
         morphology: morphology || undefined,
         driving_force: drivingForce || undefined,
@@ -82,7 +86,7 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [name, buildingBlock, morphology, drivingForce, assemblyType, assemblyDriveMethod, appFilter, sizeMin, sizeMax, setSearchParams]);
+  }, [name, compoundType, buildingBlock, morphology, drivingForce, assemblyType, assemblyDriveMethod, appFilter, sizeMin, sizeMax, setSearchParams]);
 
   const initialPage = Number(new URLSearchParams(window.location.search).get('page')) || 1;
 
@@ -105,7 +109,7 @@ export default function SearchPage() {
   const saveCacheAndScroll = () => {
     sessionStorage.setItem('search_scroll', String(window.scrollY));
     sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify({
-      page, name, appFilter, buildingBlock, assemblyType,
+      page, name, compoundType, appFilter, buildingBlock, assemblyType,
       showAdvanced, morphology, drivingForce, assemblyDriveMethod,
       sizeMin, sizeMax, result,
     }));
@@ -135,6 +139,16 @@ export default function SearchPage() {
             placeholder={tr('assemblyName')}
             className="flex-1 min-w-[200px] rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          <select
+            value={compoundType}
+            onChange={e => setCompoundType(e.target.value)}
+            className="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">{tr('allCompoundTypes')}</option>
+            {compoundTypes.map(ct => (
+              <option key={ct.type} value={ct.type}>{ct.type} ({ct.count})</option>
+            ))}
+          </select>
           <select
             value={buildingBlock}
             onChange={e => setBuildingBlock(e.target.value)}

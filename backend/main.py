@@ -61,7 +61,12 @@ def startup():
         cols = [c[1] for c in conn.execute("PRAGMA table_info(assemblies)").fetchall()]
         if "view_count" not in cols:
             conn.execute("ALTER TABLE assemblies ADD COLUMN view_count INTEGER DEFAULT 0")
-            conn.commit()
+        if "compound_type" not in cols:
+            conn.execute("ALTER TABLE assemblies ADD COLUMN compound_type VARCHAR(100)")
+        if "molecular_weight" not in cols:
+            conn.execute("ALTER TABLE assemblies ADD COLUMN molecular_weight FLOAT")
+        conn.commit()
+        conn.close()
     except Exception:
         pass  # not SQLite or DB doesn't exist yet
 
@@ -71,9 +76,15 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/compound-types", response_model=list[schemas.CompoundTypeCount])
+def list_compound_types(db: Session = Depends(get_db)):
+    return crud.get_compound_type_counts(db)
+
+
 @app.get("/api/search", response_model=schemas.SearchResult)
 def search(
     name: Optional[str] = Query(None),
+    compound_type: Optional[str] = Query(None),
     building_block: Optional[str] = Query(None),
     morphology: Optional[str] = Query(None),
     driving_force: Optional[str] = Query(None),
@@ -94,7 +105,7 @@ def search(
     db: Session = Depends(get_db),
 ):
     params = schemas.SearchParams(
-        name=name, building_block=building_block, morphology=morphology,
+        name=name, compound_type=compound_type, building_block=building_block, morphology=morphology,
         driving_force=driving_force, property=property,
         assembly_type=assembly_type, assembly_drive_method=assembly_drive_method,
         aqueous_phase=aqueous_phase, organic_phase=organic_phase,

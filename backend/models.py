@@ -109,6 +109,10 @@ class Assembly(Base):
     molecular_characteristics = Column(Text)
     notes = Column(Text)
 
+    # Compound classification
+    compound_type = Column(String(100))
+    molecular_weight = Column(Float)
+
     # Application classification
     is_cosmetic = Column(Boolean, default=False)
     cosmetic_note = Column(String(500))
