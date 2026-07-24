@@ -5,7 +5,7 @@ import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, Comp
 import { useLang } from '../context/LanguageContext';
 import CompoundCard from '../components/CompoundCard';
 
-const SEARCH_CACHE_KEY = 'search_cache_v1';
+const SEARCH_CACHE_KEY = 'search_cache_v2';
 
 export default function SearchPage() {
   const { tr } = useLang();

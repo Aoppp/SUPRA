@@ -65,12 +65,12 @@ export default function CompoundCard({ compound, onImageClick }: Props) {
           <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{compound.english_name}</div>
         )}
         <div className="flex flex-wrap gap-1 mt-auto pt-1">
-          {compound.assembly_types.slice(0, 2).map(t => (
+          {(compound.assembly_types ?? []).slice(0, 2).map(t => (
             <span key={t} className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
               {t}
             </span>
           ))}
-          {compound.assembly_types.length > 2 && (
+          {(compound.assembly_types ?? []).length > 2 && (
             <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500">
               +{compound.assembly_types.length - 2}
             </span>
