@@ -56,6 +56,7 @@ class CompoundGroupItem(BaseModel):
     name: str
     english_name: Optional[str] = None
     compound_image: Optional[str] = None
+    smiles: Optional[str] = None
     compound_type: Optional[str] = None
     molecular_weight: Optional[float] = None
     cas_number: Optional[str] = None

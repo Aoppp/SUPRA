@@ -37,6 +37,17 @@ export default function CompoundCard({ compound, onImageClick }: Props) {
               onImageClick(compound.compound_image!, compound.name);
             } : undefined}
           />
+        ) : compound.smiles ? (
+          <img
+            src={`/api/structure-image/${compound.representative_id}`}
+            alt={compound.name}
+            className="max-w-full max-h-full object-contain"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            onClick={onImageClick ? e => {
+              e.preventDefault();
+              onImageClick(`/api/structure-image/${compound.representative_id}`, compound.name);
+            } : undefined}
+          />
         ) : (
           <span className="text-slate-300 dark:text-slate-600 text-4xl">—</span>
         )}

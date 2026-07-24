@@ -45,6 +45,7 @@ export interface CompoundGroupItem {
   name: string;
   english_name?: string;
   compound_image?: string;
+  smiles?: string;
   compound_type?: string;
   molecular_weight?: number;
   cas_number?: string;
