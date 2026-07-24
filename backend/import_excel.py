@@ -234,17 +234,21 @@ def import_data():
 
         # -- Driving forces --
         driving_forces = []
+        seen_df_ids: set[int] = set()
         for df_name in split_items(cell(COL["driving_force"])):
             df = db.query(DrivingForce).filter_by(name=df_name).first()
             if not df:
                 df = DrivingForce(name=df_name)
                 db.add(df)
                 db.flush()
-            driving_forces.append(df)
+            if df.id not in seen_df_ids:
+                seen_df_ids.add(df.id)
+                driving_forces.append(df)
 
         # -- Properties (from biological activity) --
         bio_text = cell(COL["biological_activity"])
         properties = []
+        seen_prop_ids: set[int] = set()
         for p_name in split_items(bio_text):
             if len(p_name) > 200:
                 p_name = p_name[:200]
@@ -253,7 +257,9 @@ def import_data():
                 p = Property(name=p_name)
                 db.add(p)
                 db.flush()
-            properties.append(p)
+            if p.id not in seen_prop_ids:
+                seen_prop_ids.add(p.id)
+                properties.append(p)
 
         # -- Size --
         size_text = cell(COL["particle_size"])
