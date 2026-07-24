@@ -8,7 +8,6 @@ const HomePage = lazy(() => import('./pages/HomePage'));
 const CategoryPage = lazy(() => import('./pages/CategoryPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const DetailPage = lazy(() => import('./pages/DetailPage'));
-const BrowsePage = lazy(() => import('./pages/BrowsePage'));
 const UploadPage = lazy(() => import('./pages/UploadPage'));
 const WorkbenchPage = lazy(() => import('./pages/WorkbenchPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
