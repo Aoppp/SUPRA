@@ -40,6 +40,29 @@ export interface CompoundTypeCount {
   count: number;
 }
 
+export interface CompoundGroupItem {
+  representative_id: number;
+  name: string;
+  english_name?: string;
+  compound_image?: string;
+  compound_type?: string;
+  molecular_weight?: number;
+  cas_number?: string;
+  forms_count: number;
+  assembly_types: string[];
+  is_cosmetic: boolean;
+  is_drug: boolean;
+  is_food: boolean;
+  category?: string;
+}
+
+export interface CompoundGroupResult {
+  total: number;
+  page: number;
+  page_size: number;
+  results: CompoundGroupItem[];
+}
+
 export interface AssemblyListItem {
   id: number;
   name: string;

@@ -43,74 +43,13 @@ def get_assembly_detail(db: Session, assembly_id: int):
 
 
 def search_assemblies(db: Session, params: SearchParams):
-    query = db.query(Assembly).options(
+    query = _build_base_query(db, params).options(
         joinedload(Assembly.building_block),
         joinedload(Assembly.morphology),
         joinedload(Assembly.assembly_drive_method),
         joinedload(Assembly.driving_forces),
         joinedload(Assembly.properties),
     )
-
-    if params.name:
-        query = query.filter(Assembly.name.ilike(f"%{params.name}%"))
-
-    if params.building_block:
-        query = query.join(Assembly.building_block).filter(
-            BuildingBlock.name.ilike(f"%{params.building_block}%")
-        )
-
-    if params.morphology:
-        query = query.join(Assembly.morphology).filter(
-            Morphology.name.ilike(f"%{params.morphology}%")
-        )
-
-    if params.driving_force:
-        query = query.join(Assembly.driving_forces).filter(
-            DrivingForce.name.ilike(f"%{params.driving_force}%")
-        )
-
-    if params.property:
-        query = query.join(Assembly.properties).filter(
-            Property.name.ilike(f"%{params.property}%")
-        )
-
-    if params.assembly_type:
-        query = query.filter(Assembly.assembly_type.ilike(f"%{params.assembly_type}%"))
-
-    if params.assembly_drive_method:
-        query = query.join(Assembly.assembly_drive_method).filter(
-            AssemblyDriveMethod.name.ilike(f"%{params.assembly_drive_method}%")
-        )
-
-    if params.aqueous_phase:
-        query = query.filter(Assembly.aqueous_phase.ilike(f"%{params.aqueous_phase}%"))
-
-    if params.organic_phase:
-        query = query.filter(Assembly.organic_phase.ilike(f"%{params.organic_phase}%"))
-
-    if params.is_cosmetic is not None:
-        query = query.filter(Assembly.is_cosmetic == params.is_cosmetic)
-    if params.is_drug is not None:
-        query = query.filter(Assembly.is_drug == params.is_drug)
-    if params.is_food is not None:
-        query = query.filter(Assembly.is_food == params.is_food)
-
-    if params.responsiveness:
-        query = query.filter(Assembly.responsiveness.ilike(f"%{params.responsiveness}%"))
-
-    if params.surface_modification:
-        query = query.filter(Assembly.surface_modification.ilike(f"%{params.surface_modification}%"))
-
-    if params.compound_type:
-        query = query.filter(Assembly.compound_type == params.compound_type)
-
-    if params.size_min is not None:
-        query = query.filter(Assembly.size_nm_min >= params.size_min)
-    if params.size_max is not None:
-        query = query.filter(Assembly.size_nm_max <= params.size_max)
-
-    query = query.distinct()
-
     total = query.count()
     results = (
         query
@@ -118,7 +57,6 @@ def search_assemblies(db: Session, params: SearchParams):
         .limit(params.page_size)
         .all()
     )
-
     return total, results
 
 
@@ -529,6 +467,130 @@ def export_visits_csv(db: Session):
         writer.writerow([v.id, v.ip_address, v.path, v.user_agent or "", v.referer or "",
                           v.created_at.isoformat() if v.created_at else ""])
     return output.getvalue()
+
+
+def _build_base_query(db: Session, params: SearchParams):
+    """Build a filtered Assembly query (no grouping)."""
+    query = db.query(Assembly)
+
+    if params.name:
+        query = query.filter(Assembly.name.ilike(f"%{params.name}%"))
+    if params.compound_type:
+        query = query.filter(Assembly.compound_type == params.compound_type)
+    if params.building_block:
+        query = query.join(Assembly.building_block).filter(
+            BuildingBlock.name.ilike(f"%{params.building_block}%")
+        )
+    if params.morphology:
+        query = query.join(Assembly.morphology).filter(
+            Morphology.name.ilike(f"%{params.morphology}%")
+        )
+    if params.driving_force:
+        query = query.join(Assembly.driving_forces).filter(
+            DrivingForce.name.ilike(f"%{params.driving_force}%")
+        )
+    if params.assembly_type:
+        query = query.filter(Assembly.assembly_type.ilike(f"%{params.assembly_type}%"))
+    if params.assembly_drive_method:
+        query = query.join(Assembly.assembly_drive_method).filter(
+            AssemblyDriveMethod.name.ilike(f"%{params.assembly_drive_method}%")
+        )
+    if params.is_cosmetic is not None:
+        query = query.filter(Assembly.is_cosmetic == params.is_cosmetic)
+    if params.is_drug is not None:
+        query = query.filter(Assembly.is_drug == params.is_drug)
+    if params.is_food is not None:
+        query = query.filter(Assembly.is_food == params.is_food)
+    if params.size_min is not None:
+        query = query.filter(Assembly.size_nm_min >= params.size_min)
+    if params.size_max is not None:
+        query = query.filter(Assembly.size_nm_max <= params.size_max)
+    return query.distinct()
+
+
+def search_compounds_grouped(db: Session, params: SearchParams):
+    """Return one entry per compound name with forms_count."""
+    from sqlalchemy import func as sa_func
+
+    base = _build_base_query(db, params)
+
+    # Subquery: distinct names with count + min id as representative
+    name_sub = (
+        base.with_entities(
+            Assembly.name,
+            sa_func.min(Assembly.id).label("rep_id"),
+            sa_func.count(Assembly.id).label("forms_count"),
+        )
+        .group_by(Assembly.name)
+        .subquery()
+    )
+
+    # Join back to full Assembly for representative row data
+    query = (
+        db.query(Assembly, name_sub.c.forms_count)
+        .join(name_sub, Assembly.id == name_sub.c.rep_id)
+        .order_by(Assembly.name)
+    )
+
+    total = query.count()
+    rows = (
+        query
+        .offset((params.page - 1) * params.page_size)
+        .limit(params.page_size)
+        .all()
+    )
+
+    # For each representative, fetch all assembly_types across all rows with same name
+    results = []
+    names_on_page = [a.name for a, _ in rows]
+    # Get all assembly_types for these names matching filters
+    base_for_types = _build_base_query(db, params)
+    atypes_rows = (
+        base_for_types
+        .filter(Assembly.name.in_(names_on_page))
+        .with_entities(Assembly.name, Assembly.assembly_type)
+        .all()
+    )
+    atypes_by_name: dict[str, list[str]] = {}
+    for n, at in atypes_rows:
+        if at:
+            atypes_by_name.setdefault(n, [])
+            if at not in atypes_by_name[n]:
+                atypes_by_name[n].append(at)
+
+    for assembly, forms_count in rows:
+        results.append({
+            "representative_id": assembly.id,
+            "name": assembly.name,
+            "english_name": assembly.english_name,
+            "compound_image": assembly.compound_image,
+            "compound_type": assembly.compound_type,
+            "molecular_weight": assembly.molecular_weight,
+            "cas_number": assembly.cas_number,
+            "forms_count": forms_count,
+            "assembly_types": atypes_by_name.get(assembly.name, []),
+            "is_cosmetic": assembly.is_cosmetic,
+            "is_drug": assembly.is_drug,
+            "is_food": assembly.is_food,
+            "category": compute_category(assembly),
+        })
+
+    return total, results
+
+
+def get_compound_assemblies(db: Session, name: str):
+    """Return all assembly records for a compound name."""
+    return (
+        db.query(Assembly)
+        .options(
+            joinedload(Assembly.morphology),
+            joinedload(Assembly.assembly_drive_method),
+            joinedload(Assembly.driving_forces),
+        )
+        .filter(Assembly.name == name)
+        .order_by(Assembly.id)
+        .all()
+    )
 
 
 def get_compound_type_counts(db: Session):

@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import * as api from '../api/client';
-import type { SearchResult } from '../types';
+import type { CompoundGroupResult } from '../types';
 import { useLang } from '../context/LanguageContext';
+import CompoundCard from '../components/CompoundCard';
 
 export default function CategoryPage() {
   const { type } = useParams<{ type: string }>();
   const { tr } = useLang();
   const decodedType = type ? decodeURIComponent(type) : '';
 
-  const [result, setResult] = useState<SearchResult | null>(null);
+  const [result, setResult] = useState<CompoundGroupResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [appFilter, setAppFilter] = useState('');
@@ -18,7 +19,7 @@ export default function CategoryPage() {
   const doSearch = useCallback(async (pageNum: number, appF: string) => {
     setLoading(true);
     try {
-      const r = await api.search({
+      const r = await api.searchCompounds({
         compound_type: decodedType,
         is_cosmetic: appF === 'cosmetic' ? true : undefined,
         is_drug: appF === 'drug' ? true : undefined,
@@ -52,14 +53,6 @@ export default function CategoryPage() {
   };
 
   const totalPages = result ? Math.ceil(result.total / result.page_size) : 0;
-
-  const catLabel = (a: { is_cosmetic: boolean; is_drug: boolean; is_food: boolean }) => {
-    const parts = [];
-    if (a.is_food) parts.push(tr('categoryFood'));
-    if (a.is_cosmetic) parts.push(tr('categoryCosmetic'));
-    if (a.is_drug) parts.push(tr('categoryDrug'));
-    return parts.length ? parts.join(' · ') : null;
-  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -131,49 +124,12 @@ export default function CategoryPage() {
       {result && result.results.length > 0 && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {result.results.map(a => (
-              <Link
-                key={a.id}
-                to={`/assembly/${a.id}`}
-                className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all group no-underline"
-              >
-                <div className="aspect-square bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 relative">
-                  {a.compound_image ? (
-                    <img
-                      src={a.compound_image} alt={a.name}
-                      className="max-w-full max-h-full object-contain"
-                      onClick={e => { e.preventDefault(); setLightbox({ src: a.compound_image!, alt: a.name }); }}
-                    />
-                  ) : (
-                    <span className="text-slate-300 dark:text-slate-600 text-4xl">—</span>
-                  )}
-                  {catLabel(a) && (
-                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                      {catLabel(a)}
-                    </span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <div className="font-medium text-slate-800 dark:text-slate-100 text-sm leading-tight mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                    {a.name}
-                  </div>
-                  {a.english_name && (
-                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate mb-2">{a.english_name}</div>
-                  )}
-                  <div className="flex flex-wrap gap-1">
-                    {a.assembly_type && (
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-                        {a.assembly_type}
-                      </span>
-                    )}
-                    {a.particle_size && (
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                        {a.particle_size} nm
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
+            {result.results.map(c => (
+              <CompoundCard
+                key={c.representative_id}
+                compound={c}
+                onImageClick={(src, alt) => setLightbox({ src, alt })}
+              />
             ))}
           </div>
 

@@ -81,6 +81,42 @@ def list_compound_types(db: Session = Depends(get_db)):
     return crud.get_compound_type_counts(db)
 
 
+@app.get("/api/compounds", response_model=schemas.CompoundGroupResult)
+def search_compounds(
+    name: Optional[str] = Query(None),
+    compound_type: Optional[str] = Query(None),
+    assembly_type: Optional[str] = Query(None),
+    is_cosmetic: Optional[bool] = Query(None),
+    is_drug: Optional[bool] = Query(None),
+    is_food: Optional[bool] = Query(None),
+    size_min: Optional[float] = Query(None),
+    size_max: Optional[float] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    params = schemas.SearchParams(
+        name=name, compound_type=compound_type,
+        assembly_type=assembly_type,
+        is_cosmetic=is_cosmetic, is_drug=is_drug, is_food=is_food,
+        size_min=size_min, size_max=size_max,
+        page=page, page_size=page_size,
+    )
+    total, results = crud.search_compounds_grouped(db, params)
+    items = [schemas.CompoundGroupItem(**r) for r in results]
+    return schemas.CompoundGroupResult(total=total, page=page, page_size=page_size, results=items)
+
+
+@app.get("/api/compounds/{compound_name}/assemblies", response_model=list[schemas.AssemblyListItem])
+def get_compound_assemblies(compound_name: str, db: Session = Depends(get_db)):
+    assemblies = crud.get_compound_assemblies(db, compound_name)
+    items = [schemas.AssemblyListItem.model_validate(a) for a in assemblies]
+    for item, a in zip(items, assemblies):
+        item.category = crud.compute_category(a)
+        item.foodmate_url = crud.compute_foodmate_url(a)
+    return items
+
+
 @app.get("/api/search", response_model=schemas.SearchResult)
 def search(
     name: Optional[str] = Query(None),

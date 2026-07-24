@@ -118,6 +118,12 @@ export const t = {
     categoryPageTitle: '{type} Compounds',
     backToHome: '← Back to Home',
     compounds: 'compounds',
+    formsCount: '{n} assembly forms',
+    selectAssemblyForm: 'Select Assembly Form',
+    assemblyForm: 'Assembly Form',
+    drivingForceLabel: 'Driving Force',
+    viewDetail: 'View Details',
+    compoundInfo: 'Compound Information',
   },
   zh: {
     siteTitle: 'SAD',
@@ -236,6 +242,12 @@ export const t = {
     categoryPageTitle: '{type}类化合物',
     backToHome: '← 返回首页',
     compounds: '条记录',
+    formsCount: '{n} 种组装形式',
+    selectAssemblyForm: '选择组装形式',
+    assemblyForm: '组装形式',
+    drivingForceLabel: '组装驱动力',
+    viewDetail: '查看详情',
+    compoundInfo: '化合物基本信息',
   },
 } as const;
 

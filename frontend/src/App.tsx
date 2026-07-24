@@ -10,6 +10,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const DetailPage = lazy(() => import('./pages/DetailPage'));
 const UploadPage = lazy(() => import('./pages/UploadPage'));
 const WorkbenchPage = lazy(() => import('./pages/WorkbenchPage'));
+const CompoundPage = lazy(() => import('./pages/CompoundPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 function PageSkeleton() {
@@ -40,6 +41,7 @@ export default function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/categories/:type" element={<CategoryPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/compound/:name" element={<CompoundPage />} />
                 <Route path="/assembly/:id" element={<DetailPage />} />
                 <Route path="/polysaccharide/:id" element={<DetailPage />} />
                 <Route path="/browse" element={<Navigate to="/search" replace />} />

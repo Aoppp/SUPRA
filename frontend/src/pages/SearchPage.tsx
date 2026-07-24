@@ -1,8 +1,9 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import * as api from '../api/client';
-import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, SearchResult, CompoundTypeCount } from '../types';
+import type { BuildingBlock, Morphology, DrivingForce, AssemblyDriveMethod, CompoundGroupResult, CompoundTypeCount } from '../types';
 import { useLang } from '../context/LanguageContext';
+import CompoundCard from '../components/CompoundCard';
 
 const SEARCH_CACHE_KEY = 'search_cache_v1';
 
@@ -37,7 +38,7 @@ export default function SearchPage() {
   const [sizeMin, setSizeMin] = useState(cached?.sizeMin || '');
   const [sizeMax, setSizeMax] = useState(cached?.sizeMax || '');
 
-  const [result, setResult] = useState<SearchResult | null>(cached?.result || null);
+  const [result, setResult] = useState<CompoundGroupResult | null>(cached?.result || null);
   const [loading, setLoading] = useState(!cached?.result);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
@@ -65,14 +66,10 @@ export default function SearchPage() {
   const doSearch = useCallback(async (pageNum = 1) => {
     setLoading(true);
     try {
-      const r = await api.search({
+      const r = await api.searchCompounds({
         name: name || undefined,
         compound_type: compoundType || undefined,
-        building_block: buildingBlock || undefined,
-        morphology: morphology || undefined,
-        driving_force: drivingForce || undefined,
         assembly_type: assemblyType || undefined,
-        assembly_drive_method: assemblyDriveMethod || undefined,
         is_cosmetic: appFilter === 'cosmetic' ? true : undefined,
         is_drug: appFilter === 'drug' ? true : undefined,
         is_food: appFilter === 'food' ? true : undefined,
@@ -86,7 +83,7 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [name, compoundType, buildingBlock, morphology, drivingForce, assemblyType, assemblyDriveMethod, appFilter, sizeMin, sizeMax, setSearchParams]);
+  }, [name, compoundType, assemblyType, appFilter, sizeMin, sizeMax, setSearchParams]);
 
   const initialPage = Number(new URLSearchParams(window.location.search).get('page')) || 1;
 
@@ -96,15 +93,6 @@ export default function SearchPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalPages = result ? Math.ceil(result.total / result.page_size) : 0;
-
-  const catLabel = (a: { is_cosmetic: boolean; is_drug: boolean; is_food: boolean }) => {
-    const parts = [];
-    if (a.is_food) parts.push(tr('categoryFood'));
-    if (a.is_cosmetic) parts.push(tr('categoryCosmetic'));
-    if (a.is_drug) parts.push(tr('categoryDrug'));
-    if (parts.length === 0) return null;
-    return parts.join(' · ');
-  };
 
   const saveCacheAndScroll = () => {
     sessionStorage.setItem('search_scroll', String(window.scrollY));
@@ -279,78 +267,13 @@ export default function SearchPage() {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {result.results.map(a => (
-              <Link
-                key={a.id}
-                to={`/assembly/${a.id}`}
-                onClick={saveCacheAndScroll}
-                className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all group"
-              >
-                {/* Compound Image */}
-                <div className="aspect-square bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 relative">
-                  {a.compound_image ? (
-                    <img
-                      src={a.compound_image} alt={a.name}
-                      className="max-w-full max-h-full object-contain"
-                      onClick={e => { e.preventDefault(); setLightbox({ src: a.compound_image!, alt: a.name }); }}
-                    />
-                  ) : a.smiles ? (
-                    <img
-                      src={`/api/structure-image/${a.id}`}
-                      alt={a.name}
-                      className="max-w-full max-h-full object-contain"
-                      onError={e => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                      onClick={e => { e.preventDefault(); setLightbox({ src: `/api/structure-image/${a.id}`, alt: a.name }); }}
-                    />
-                  ) : (
-                    <span className="text-slate-300 dark:text-slate-600 text-4xl">—</span>
-                  )}
-                  {/* Application badge */}
-                  {catLabel(a) && (
-                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                      {catLabel(a)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Card body */}
-                <div className="p-3">
-                  <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
-                    {a.name}
-                  </h3>
-                  {a.english_name && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate italic mt-0.5">{a.english_name}</p>
-                  )}
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {a.building_block && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                        {a.building_block.name}
-                      </span>
-                    )}
-                    {a.assembly_type && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
-                        {a.assembly_type}
-                      </span>
-                    )}
-                    {a.assembly_drive_method && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-700">
-                        {a.assembly_drive_method.name}
-                      </span>
-                    )}
-                  </div>
-                  {a.driving_forces.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {a.driving_forces.map(df => (
-                        <span key={df.id} className="px-1 py-0.5 rounded text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
-                          {df.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Link>
+            {result.results.map(c => (
+              <div key={c.representative_id} onClick={saveCacheAndScroll}>
+                <CompoundCard
+                  compound={c}
+                  onImageClick={(src, alt) => setLightbox({ src, alt })}
+                />
+              </div>
             ))}
             {result.results.length === 0 && (
               <div className="col-span-full py-12 text-center">
