@@ -543,6 +543,7 @@ def search_compounds_grouped(db: Session, params: SearchParams):
     # For each representative, fetch all assembly_types across all rows with same name
     results = []
     names_on_page = [a.name for a, _ in rows]
+
     # Get all assembly_types for these names matching filters
     base_for_types = _build_base_query(db, params)
     atypes_rows = (
@@ -558,12 +559,25 @@ def search_compounds_grouped(db: Session, params: SearchParams):
             if at not in atypes_by_name[n]:
                 atypes_by_name[n].append(at)
 
+    # Fetch first non-null compound_image for each name (representative row may have NULL)
+    image_rows = (
+        db.query(Assembly.name, Assembly.compound_image)
+        .filter(Assembly.name.in_(names_on_page))
+        .filter(Assembly.compound_image.isnot(None))
+        .order_by(Assembly.name, Assembly.id)
+        .all()
+    )
+    image_by_name: dict[str, str] = {}
+    for n, img in image_rows:
+        if n not in image_by_name:
+            image_by_name[n] = img
+
     for assembly, forms_count in rows:
         results.append({
             "representative_id": assembly.id,
             "name": assembly.name,
             "english_name": assembly.english_name,
-            "compound_image": assembly.compound_image,
+            "compound_image": image_by_name.get(assembly.name, assembly.compound_image),
             "compound_type": assembly.compound_type,
             "molecular_weight": assembly.molecular_weight,
             "cas_number": assembly.cas_number,

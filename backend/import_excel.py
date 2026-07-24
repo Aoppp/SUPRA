@@ -187,8 +187,9 @@ def import_data():
     ws = wb["自组装数据收集表"]
     os.makedirs(IMAGES_DIR, exist_ok=True)
 
-    # Track images already saved for this CAS to reuse across rows
+    # Track images already saved — keyed by CAS first, then by compound name
     cas_image_cache: dict[str, str] = {}
+    name_image_cache: dict[str, str] = {}
 
     imported = 0
     for row_idx in range(DATA_START, ws.max_row + 1):
@@ -290,6 +291,8 @@ def import_data():
 
         if cas and cas in cas_image_cache:
             compound_image = cas_image_cache[cas]
+        elif compound_name in name_image_cache:
+            compound_image = name_image_cache[compound_name]
         elif img_id and img_id in image_map:
             img_bytes, ext = image_map[img_id]
             safe = re.sub(r"[^\w\-]", "_", cas or compound_name)
@@ -300,6 +303,7 @@ def import_data():
             compound_image = f"/images/{img_filename}"
             if cas:
                 cas_image_cache[cas] = compound_image
+            name_image_cache[compound_name] = compound_image
 
         assembly = Assembly(
             name=compound_name,
