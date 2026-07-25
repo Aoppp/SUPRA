@@ -167,7 +167,6 @@ export default function DetailPage() {
             {data.cas_number && <span>CAS <span className="text-slate-700 dark:text-slate-300 font-medium">{data.cas_number}</span></span>}
             {data.molecular_weight && <span>{tr('molecularWeight')} <span className="text-slate-700 dark:text-slate-300 font-medium">{data.molecular_weight} g/mol</span></span>}
             {data.log_p != null && <span>logP <span className="text-slate-700 dark:text-slate-300 font-medium">{data.log_p}</span></span>}
-            {data.water_solubility && <span className="flex items-center gap-1">{tr('waterSolubility')} <SolubilityBadge value={data.water_solubility} /></span>}
           </div>
 
           {data.view_count != null && data.view_count > 0 && (
