@@ -348,10 +348,13 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def increment_view_count(db: Session, assembly_id: int):
-    a = db.query(Assembly).filter(Assembly.id == assembly_id).first()
-    if a:
-        a.view_count = (a.view_count or 0) + 1
-        db.commit()
+    """Atomic single-statement increment; avoids the SELECT+UPDATE race."""
+    from sqlalchemy import func as sa_func
+    db.query(Assembly).filter(Assembly.id == assembly_id).update(
+        {Assembly.view_count: sa_func.coalesce(Assembly.view_count, 0) + 1},
+        synchronize_session=False,
+    )
+    db.commit()
 
 
 def log_visit(db: Session, ip: str, path: str, ua: str | None = None, referer: str | None = None):
@@ -385,42 +388,52 @@ def get_visits(
 def get_admin_stats(db: Session, date_from: str | None = None, date_to: str | None = None):
     from models import VisitLog
     from sqlalchemy import func as sa_func, distinct
-    from datetime import date as date_type
 
     today = date.today()
 
-    base = db.query(VisitLog)
-    if date_from:
-        base = base.filter(sa_func.date(VisitLog.created_at) >= date_from)
-    if date_to:
-        base = base.filter(sa_func.date(VisitLog.created_at) <= date_to)
-
-    total_visits = base.count()
-    # Count unique IPs within the filtered range
-    ip_q = db.query(distinct(VisitLog.ip_address))
-    if date_from:
-        ip_q = ip_q.filter(sa_func.date(VisitLog.created_at) >= date_from)
-    if date_to:
-        ip_q = ip_q.filter(sa_func.date(VisitLog.created_at) <= date_to)
-    unique_ips = ip_q.count()
-    today_visits = db.query(sa_func.count(VisitLog.id)) \
-        .filter(sa_func.date(VisitLog.created_at) == today).scalar() or 0
-    today_unique = db.query(sa_func.count(distinct(VisitLog.ip_address))) \
-        .filter(sa_func.date(VisitLog.created_at) == today).scalar() or 0
+    # Global scalars (independent of filter)
     total_assemblies = db.query(sa_func.count(Assembly.id)).scalar() or 0
     total_views = db.query(sa_func.sum(Assembly.view_count)).scalar() or 0
 
-    # Daily trend for last 7 days (always show recent week)
-    trend = []
-    for i in range(6, -1, -1):
-        d = today - timedelta(days=i)
-        count = db.query(sa_func.count(VisitLog.id)) \
-            .filter(sa_func.date(VisitLog.created_at) == d).scalar() or 0
-        trend.append({"date": d.isoformat(), "count": count})
+    # Filtered range totals (one query returning multiple aggregates)
+    filtered = db.query(
+        sa_func.count(VisitLog.id).label("total"),
+        sa_func.count(distinct(VisitLog.ip_address)).label("uniques"),
+    )
+    if date_from:
+        filtered = filtered.filter(sa_func.date(VisitLog.created_at) >= date_from)
+    if date_to:
+        filtered = filtered.filter(sa_func.date(VisitLog.created_at) <= date_to)
+    total_visits, unique_ips = filtered.one()
+
+    # Today's snapshot
+    today_row = db.query(
+        sa_func.count(VisitLog.id),
+        sa_func.count(distinct(VisitLog.ip_address)),
+    ).filter(sa_func.date(VisitLog.created_at) == today).one()
+    today_visits, today_unique = today_row[0] or 0, today_row[1] or 0
+
+    # 7-day trend in ONE query (group by day)
+    seven_days_ago = today - timedelta(days=6)
+    rows = (
+        db.query(
+            sa_func.date(VisitLog.created_at).label("day"),
+            sa_func.count(VisitLog.id).label("count"),
+        )
+        .filter(sa_func.date(VisitLog.created_at) >= seven_days_ago)
+        .group_by(sa_func.date(VisitLog.created_at))
+        .all()
+    )
+    by_day = {str(r.day): r.count for r in rows}
+    trend = [
+        {"date": (today - timedelta(days=i)).isoformat(),
+         "count": by_day.get((today - timedelta(days=i)).isoformat(), 0)}
+        for i in range(6, -1, -1)
+    ]
 
     return dict(
-        total_visits=total_visits,
-        unique_ips=unique_ips,
+        total_visits=total_visits or 0,
+        unique_ips=unique_ips or 0,
         today_visits=today_visits,
         today_unique_ips=today_unique,
         total_assemblies=total_assemblies,
@@ -430,22 +443,31 @@ def get_admin_stats(db: Session, date_from: str | None = None, date_to: str | No
 
 
 def get_trend_data(db: Session, date_from: str, date_to: str):
+    """Return one row per day in range — computed in a single grouped query."""
     from models import VisitLog
     from sqlalchemy import func as sa_func, distinct
 
-    daily = []
-    d = date.fromisoformat(date_from)
+    start = date.fromisoformat(date_from)
     end = date.fromisoformat(date_to)
+
+    rows = (
+        db.query(
+            sa_func.date(VisitLog.created_at).label("day"),
+            sa_func.count(VisitLog.id).label("visits"),
+            sa_func.count(distinct(VisitLog.ip_address)).label("ips"),
+        )
+        .filter(sa_func.date(VisitLog.created_at) >= start)
+        .filter(sa_func.date(VisitLog.created_at) <= end)
+        .group_by(sa_func.date(VisitLog.created_at))
+        .all()
+    )
+    by_day = {str(r.day): (r.visits, r.ips) for r in rows}
+
+    daily = []
+    d = start
     while d <= end:
-        day_visits = db.query(sa_func.count(VisitLog.id)) \
-            .filter(sa_func.date(VisitLog.created_at) == d).scalar() or 0
-        day_ips = db.query(sa_func.count(distinct(VisitLog.ip_address))) \
-            .filter(sa_func.date(VisitLog.created_at) == d).scalar() or 0
-        daily.append({
-            "date": d.isoformat(),
-            "visits": day_visits,
-            "unique_ips": day_ips,
-        })
+        visits, ips = by_day.get(d.isoformat(), (0, 0))
+        daily.append({"date": d.isoformat(), "visits": visits, "unique_ips": ips})
         d += timedelta(days=1)
     return daily
 

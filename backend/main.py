@@ -151,12 +151,12 @@ def search(
         page=page, page_size=page_size,
     )
     total, results = crud.search_assemblies(db, params)
-    items = [schemas.AssemblyListItem.model_validate(r) for r in results]
-    for item in items:
-        a = next((r for r in results if r.id == item.id), None)
-        if a:
-            item.category = crud.compute_category(a)
-            item.foodmate_url = crud.compute_foodmate_url(a)
+    items = []
+    for a in results:
+        item = schemas.AssemblyListItem.model_validate(a)
+        item.category = crud.compute_category(a)
+        item.foodmate_url = crud.compute_foodmate_url(a)
+        items.append(item)
     return schemas.SearchResult(
         total=total, page=page, page_size=page_size,
         results=items,
@@ -198,6 +198,19 @@ def list_properties(db: Session = Depends(get_db)):
 @app.get("/api/assembly-drive-methods", response_model=list[schemas.AssemblyDriveMethodOut])
 def list_assembly_drive_methods(db: Session = Depends(get_db)):
     return crud.get_assembly_drive_method_list(db)
+
+
+@app.get("/api/lookups")
+def list_all_lookups(db: Session = Depends(get_db)):
+    """Combined lookup lists for search filters — one round-trip instead of 5."""
+    return {
+        "building_blocks": [{"id": b.id, "name": b.name} for b in crud.get_building_block_list(db)],
+        "morphologies": [{"id": m.id, "name": m.name} for m in crud.get_morphology_list(db)],
+        "driving_forces": [{"id": d.id, "name": d.name} for d in crud.get_driving_force_list(db)],
+        "properties": [{"id": p.id, "name": p.name} for p in crud.get_property_list(db)],
+        "assembly_drive_methods": [{"id": m.id, "name": m.name} for m in crud.get_assembly_drive_method_list(db)],
+        "compound_types": crud.get_compound_type_counts(db),
+    }
 
 
 @app.post("/api/assemblies", response_model=schemas.AssemblyDetail, dependencies=[Depends(auth.require_admin)])
@@ -425,12 +438,12 @@ def delete_assembly(assembly_id: int, db: Session = Depends(get_db)):
 def search_by_cas(cas: str = Query(...), db: Session = Depends(get_db)):
     """Find assemblies by CAS number (exact or partial match)."""
     results = crud.search_by_cas(db, cas)
-    items = [schemas.AssemblyListItem.model_validate(r) for r in results]
-    for item in items:
-        r = next((x for x in results if x.id == item.id), None)
-        if r:
-            item.category = crud.compute_category(r)
-            item.foodmate_url = crud.compute_foodmate_url(r)
+    items = []
+    for a in results:
+        item = schemas.AssemblyListItem.model_validate(a)
+        item.category = crud.compute_category(a)
+        item.foodmate_url = crud.compute_foodmate_url(a)
+        items.append(item)
     return items
 
 

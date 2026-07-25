@@ -56,11 +56,13 @@ export default function SearchPage() {
   });
 
   useEffect(() => {
-    api.getBuildingBlockList().then(setBbList);
-    api.getMorphologyList().then(setMorphList);
-    api.getDrivingForceList().then(setDfList);
-    api.getAssemblyDriveMethodList().then(setDmList);
-    api.getCompoundTypes().then(setCompoundTypes);
+    api.getLookups().then(bundle => {
+      setBbList(bundle.building_blocks);
+      setMorphList(bundle.morphologies);
+      setDfList(bundle.driving_forces);
+      setDmList(bundle.assembly_drive_methods);
+      setCompoundTypes(bundle.compound_types);
+    });
   }, []);
 
   const doSearch = useCallback(async (pageNum = 1) => {

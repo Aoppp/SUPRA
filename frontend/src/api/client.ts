@@ -53,6 +53,19 @@ export function getCompoundTypes() {
   return get<CompoundTypeCount[]>('/compound-types');
 }
 
+export interface LookupBundle {
+  building_blocks: BuildingBlock[];
+  morphologies: Morphology[];
+  driving_forces: DrivingForce[];
+  properties: Property[];
+  assembly_drive_methods: AssemblyDriveMethod[];
+  compound_types: CompoundTypeCount[];
+}
+
+export function getLookups() {
+  return get<LookupBundle>('/lookups');
+}
+
 export function searchCompounds(params: Record<string, string | number | boolean | undefined>) {
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
