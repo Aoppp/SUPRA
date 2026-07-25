@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import * as api from '../api/client';
 import type { BuildingBlock, Morphology, DrivingForce, Property, AssemblyDriveMethod, AssemblyListItem } from '../types';
 import Toast from '../components/Toast';
-const ADMIN_PASSWORD = 'Chaofenzi';
 
 type FormData = Record<string, string | boolean>;
 
@@ -62,17 +61,18 @@ const inputCls = "mt-1 block w-full rounded-md border border-slate-300 dark:bord
 export default function UploadPage() {
   const navigate = useNavigate();
 
-  // --- Password gate ---
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem('admin-auth') === '1');
+  // --- Password gate (JWT via backend) ---
+  const [authed, setAuthed] = useState(() => api.isLoggedIn());
   const [pwd, setPwd] = useState('');
   const [pwdError, setPwdError] = useState(false);
 
-  const handleLogin = () => {
-    if (pwd === ADMIN_PASSWORD) {
-      sessionStorage.setItem('admin-auth', '1');
+  const handleLogin = async () => {
+    try {
+      const { token } = await api.adminLogin(pwd);
+      localStorage.setItem('admin_token', token);
       setAuthed(true);
       setPwdError(false);
-    } else {
+    } catch {
       setPwdError(true);
     }
   };

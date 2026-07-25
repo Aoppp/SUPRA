@@ -2,6 +2,15 @@ import type { SearchResult, AssemblyDetail, AssemblyListItem, BuildingBlock, Mor
 
 const BASE = '/api';
 
+function getToken(): string | null {
+  return localStorage.getItem('admin_token');
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(BASE + url);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -61,6 +70,7 @@ export function uploadImage(file: File) {
   fd.set('file', file);
   return fetch(BASE + '/upload-image', {
     method: 'POST',
+    headers: authHeaders(),
     body: fd,
   }).then(res => {
     if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -71,7 +81,7 @@ export function uploadImage(file: File) {
 export function createAssembly(data: Record<string, unknown>) {
   return fetch(BASE + '/assemblies', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(data),
   }).then(res => {
     if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -88,6 +98,7 @@ export function batchUploadAssemblies(file: File) {
   fd.set('file', file);
   return fetch(BASE + '/assemblies/batch', {
     method: 'POST',
+    headers: authHeaders(),
     body: fd,
   }).then(res => {
     if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -96,7 +107,10 @@ export function batchUploadAssemblies(file: File) {
 }
 
 export function deleteAssembly(id: number) {
-  return fetch(BASE + `/assemblies/${id}`, { method: 'DELETE' }).then(res => {
+  return fetch(BASE + `/assemblies/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }).then(res => {
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json() as Promise<{ ok: boolean }>;
   });
@@ -124,16 +138,6 @@ export function uploadWorkProgress(data: FormData) {
 }
 
 // ── Admin ──────────────────────────────────────────────
-
-function getToken(): string | null {
-  return localStorage.getItem('admin_token');
-}
-
-function authHeaders(): Record<string, string> {
-  const token = getToken();
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
-}
 
 export function adminLogin(password: string) {
   return fetch(BASE + '/admin/login', {

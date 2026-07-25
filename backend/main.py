@@ -200,7 +200,7 @@ def list_assembly_drive_methods(db: Session = Depends(get_db)):
     return crud.get_assembly_drive_method_list(db)
 
 
-@app.post("/api/assemblies", response_model=schemas.AssemblyDetail)
+@app.post("/api/assemblies", response_model=schemas.AssemblyDetail, dependencies=[Depends(auth.require_admin)])
 def create_assembly(data: schemas.AssemblyCreate, db: Session = Depends(get_db)):
     return crud.create_assembly(db, data)
 
@@ -209,26 +209,44 @@ IMAGES_DIR = os.path.join(os.path.dirname(__file__), "data", "images")
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
 
-@app.post("/api/upload-image")
+ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp"}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+MAX_EXCEL_BYTES = 20 * 1024 * 1024  # 20 MB
+MAX_WORKBENCH_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
+@app.post("/api/upload-image", dependencies=[Depends(auth.require_admin)])
 async def upload_image(file: UploadFile = File(...)):
-    """Upload a single image file, return the path."""
+    """Upload a single image file, return the path. Admin only."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected")
-    ext = os.path.splitext(file.filename)[1] or ".png"
+    ext = os.path.splitext(file.filename)[1].lower() or ".png"
+    if ext not in ALLOWED_IMAGE_EXTS:
+        raise HTTPException(status_code=400, detail=f"Unsupported image extension {ext}")
+    if file.content_type and file.content_type not in ALLOWED_IMAGE_MIMES:
+        raise HTTPException(status_code=400, detail=f"Unsupported MIME {file.content_type}")
+
+    contents = await file.read()
+    if len(contents) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds {MAX_IMAGE_BYTES // (1024*1024)} MB limit")
+
     import uuid
     safe_name = f"{uuid.uuid4().hex}{ext}"
     dest = os.path.join(IMAGES_DIR, safe_name)
     with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(contents)
     return {"path": f"/images/{safe_name}"}
 
 
-@app.post("/api/assemblies/batch")
+@app.post("/api/assemblies/batch", dependencies=[Depends(auth.require_admin)])
 async def batch_create_assemblies(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename or not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Please upload an Excel file (.xlsx or .xls)")
 
     contents = await file.read()
+    if len(contents) > MAX_EXCEL_BYTES:
+        raise HTTPException(status_code=413, detail=f"Excel file exceeds {MAX_EXCEL_BYTES // (1024*1024)} MB limit")
     try:
         wb = openpyxl.load_workbook(io.BytesIO(contents))
     except Exception:
@@ -388,7 +406,7 @@ async def batch_create_assemblies(file: UploadFile = File(...), db: Session = De
     return {"created": created, "errors": errors, "total_rows": len(rows)}
 
 
-@app.delete("/api/assemblies/{assembly_id}")
+@app.delete("/api/assemblies/{assembly_id}", dependencies=[Depends(auth.require_admin)])
 def delete_assembly(assembly_id: int, db: Session = Depends(get_db)):
     a = crud.get_assembly_detail(db, assembly_id)
     if not a:
@@ -432,11 +450,16 @@ async def upload_work_progress(
 ):
     file_path = None
     if file and file.filename:
+        contents = await file.read()
+        if len(contents) > MAX_WORKBENCH_BYTES:
+            raise HTTPException(status_code=413, detail=f"File exceeds {MAX_WORKBENCH_BYTES // (1024*1024)} MB limit")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_name = f"{timestamp}_{file.filename}"
+        # Sanitize filename to prevent path traversal
+        safe_upload_name = os.path.basename(file.filename).replace("..", "_")
+        safe_name = f"{timestamp}_{safe_upload_name}"
         dest = os.path.join(crud.UPLOAD_DIR, safe_name)
         with open(dest, "wb") as f:
-            shutil.copyfileobj(file.file, f)
+            f.write(contents)
         file_path = f"/uploads/{safe_name}"
 
     data = schemas.WorkProgressCreate(
