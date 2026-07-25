@@ -404,6 +404,7 @@ def propagate_images():
     The Excel only has a DISPIMG formula on the first occurrence of each compound.
     This pass ensures every row in the DB shares the same compound_image path.
     """
+    from database import get_db
     from models import Assembly
     db = next(get_db())
     names = [r[0] for r in db.query(Assembly.name).distinct().all()]
