@@ -578,7 +578,6 @@ def search_compounds_grouped(db: Session, params: SearchParams):
             "name": assembly.name,
             "english_name": assembly.english_name,
             "compound_image": image_by_name.get(assembly.name, assembly.compound_image),
-            "smiles": assembly.smiles,
             "compound_type": assembly.compound_type,
             "molecular_weight": assembly.molecular_weight,
             "cas_number": assembly.cas_number,

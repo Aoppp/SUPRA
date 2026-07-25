@@ -363,12 +363,44 @@ def import_data():
     db.commit()
     db.close()
 
+    propagate_images()
+
     db2 = next(get_db())
     from models import Assembly as A
+    total_with_img = db2.query(A).filter(A.compound_image != None).count()
+    total_without = db2.query(A).filter(A.compound_image == None).count()
+    distinct = db2.query(A.name).distinct().count()
     print(f"\nDone! Imported {imported} assemblies.")
-    print(f"  Distinct compounds: {db2.query(A.name).distinct().count()}")
-    print(f"  Images saved: {len(cas_image_cache)}")
+    print(f"  Distinct compounds: {distinct}")
+    print(f"  Rows with image:    {total_with_img}")
+    if total_without:
+        no_img = db2.query(A.name).filter(A.compound_image == None).distinct().all()
+        print(f"  Rows without image: {total_without} (compounds: {[r[0] for r in no_img]})")
     db2.close()
+
+
+def propagate_images():
+    """After import: propagate the WPS image from any row to all rows of the same compound.
+
+    The Excel only has a DISPIMG formula on the first occurrence of each compound.
+    This pass ensures every row in the DB shares the same compound_image path.
+    """
+    from models import Assembly
+    db = next(get_db())
+    names = [r[0] for r in db.query(Assembly.name).distinct().all()]
+    propagated = 0
+    for name in names:
+        rows = db.query(Assembly).filter(Assembly.name == name).order_by(Assembly.id).all()
+        img = next((r.compound_image for r in rows if r.compound_image), None)
+        if img:
+            for r in rows:
+                if r.compound_image != img:
+                    r.compound_image = img
+                    propagated += 1
+    db.commit()
+    db.close()
+    if propagated:
+        print(f"[images] Propagated to {propagated} additional rows.")
 
 
 if __name__ == "__main__":
