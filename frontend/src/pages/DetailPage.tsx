@@ -270,18 +270,11 @@ export default function DetailPage() {
           ) : <p className="text-sm text-slate-400">{tr('noData')}</p>}
         </Section>
 
-        {/* Other Info */}
+        {/* Preparation Conditions */}
         <Section title={tr('experimentalData')} span>
           <dl className="space-y-0.5">
             <Field label={tr('stirringCondition')}>{data.stirring_condition}</Field>
             <Field label={tr('assemblyTime')}>{data.assembly_time}</Field>
-            <Field label={tr('doi')}>
-              {data.doi && (
-                <a href={`https://doi.org/${data.doi}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  {data.doi}
-                </a>
-              )}
-            </Field>
             <Field label={tr('externalUrl')}>
               {data.url && (
                 <a href={data.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all text-xs">{data.url}</a>
@@ -289,6 +282,20 @@ export default function DetailPage() {
             </Field>
           </dl>
         </Section>
+
+        {/* DOI */}
+        {data.doi && (
+          <Section title={tr('doi')} span>
+            <a
+              href={`https://doi.org/${data.doi}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline text-sm break-all"
+            >
+              {data.doi}
+            </a>
+          </Section>
+        )}
 
         {/* Notes */}
         {data.notes && (
