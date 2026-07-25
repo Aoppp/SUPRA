@@ -104,6 +104,8 @@ class AssemblyListItem(BaseModel):
     component_count: Optional[str] = None
     responsiveness: Optional[str] = None
     surface_modification: Optional[str] = None
+    is_single_component: Optional[bool] = True
+    assembly_components: Optional[str] = None
     category: Optional[str] = None
     foodmate_url: Optional[str] = None
     model_config = {"from_attributes": True}
@@ -152,7 +154,15 @@ class AssemblyDetail(BaseModel):
     food_daily_intake: Optional[str] = None
     regulations: Optional[str] = None
 
+    # Physicochemical properties
+    water_solubility: Optional[str] = None
+    log_p: Optional[float] = None
+    bioavailability: Optional[str] = None
+    natural_source: Optional[str] = None
+
     # Assembly process
+    is_single_component: Optional[bool] = True
+    assembly_components: Optional[str] = None
     component_count: Optional[str] = None
     responsiveness: Optional[str] = None
     surface_modification: Optional[str] = None

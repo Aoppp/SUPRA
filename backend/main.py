@@ -68,6 +68,12 @@ def startup():
             ("view_count", "INTEGER DEFAULT 0"),
             ("compound_type", "VARCHAR(100)"),
             ("molecular_weight", "FLOAT"),
+            ("water_solubility", "VARCHAR(100)"),
+            ("log_p", "FLOAT"),
+            ("bioavailability", "VARCHAR(500)"),
+            ("natural_source", "TEXT"),
+            ("is_single_component", "BOOLEAN DEFAULT 1"),
+            ("assembly_components", "TEXT"),
         ]:
             if column not in cols:
                 conn.execute(f"ALTER TABLE assemblies ADD COLUMN {column} {ddl}")

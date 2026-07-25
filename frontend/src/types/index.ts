@@ -93,6 +93,8 @@ export interface AssemblyListItem {
   component_count?: string;
   responsiveness?: string;
   surface_modification?: string;
+  is_single_component?: boolean;
+  assembly_components?: string;
   category?: string;
   foodmate_url?: string;
 }
@@ -138,6 +140,12 @@ export interface AssemblyDetail {
   food_category?: string;
   food_daily_intake?: string;
   regulations?: string;
+  water_solubility?: string;
+  log_p?: number;
+  bioavailability?: string;
+  natural_source?: string;
+  is_single_component?: boolean;
+  assembly_components?: string;
   component_count?: string;
   responsiveness?: string;
   surface_modification?: string;

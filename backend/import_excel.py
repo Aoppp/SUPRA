@@ -29,7 +29,11 @@ COL = {
     "molecular_weight":   7,   # 分子量（g/mol）
     "smiles":             8,   # SMILES号
     "cas":                9,   # CAS号
-    # 10: 水溶性  11: logP  12: 生物利用度  13: 天然来源  14: 应用名称
+    "water_solubility":   10,  # 水溶性
+    "log_p":              11,  # logP
+    "bioavailability":    12,  # 生物利用度问题
+    "natural_source":     13,  # 天然来源
+    # 14: 应用名称（标题列，忽略）
     "is_cosmetic":        15,
     "cosmetic_note":      16,
     "is_drug":            17,
@@ -39,8 +43,9 @@ COL = {
     "food_category":      21,
     "food_daily_intake":  22,
     "regulations":        23,
-    # 24: 单组份自组装  25: 组装参与组分数  26: 具体组装成分
-    "component_count":    25,
+    "is_single_component": 24,  # 单组份自组装（是/否）
+    "component_count":    25,   # 组装参与组分数
+    "assembly_components": 26,  # 具体组装成分
     "assembly_drive_method": 27,  # 组装驱动方式
     "assembly_type":      28,   # 最终组装体类型
     "responsiveness":     29,
@@ -269,12 +274,20 @@ def import_data():
         # -- CAS --
         cas = clean_cas(cell(COL["cas"]))
 
-        # -- Molecular weight --
+        # -- Molecular weight & logP --
         mw_raw = ws.cell(row=row_idx, column=COL["molecular_weight"]).value
         mol_weight = None
         if mw_raw is not None:
             try:
                 mol_weight = float(mw_raw)
+            except (TypeError, ValueError):
+                pass
+
+        logp_raw = ws.cell(row=row_idx, column=COL["log_p"]).value
+        log_p = None
+        if logp_raw is not None:
+            try:
+                log_p = float(logp_raw)
             except (TypeError, ValueError):
                 pass
 
@@ -343,7 +356,13 @@ def import_data():
             food_note=opt(COL["food_note"]),
             food_category=opt(COL["food_category"]),
             food_daily_intake=opt(COL["food_daily_intake"]),
+            water_solubility=opt(COL["water_solubility"]),
+            log_p=log_p,
+            bioavailability=opt(COL["bioavailability"]),
+            natural_source=opt(COL["natural_source"]),
             regulations=opt(COL["regulations"]),
+            is_single_component=cell(COL["is_single_component"]) != "否",
+            assembly_components=opt(COL["assembly_components"]),
             component_count=opt(COL["component_count"]),
             responsiveness=opt(COL["responsiveness"]),
             surface_modification=opt(COL["surface_modification"]),

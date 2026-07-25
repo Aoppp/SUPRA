@@ -100,6 +100,12 @@ class Assembly(Base):
     molecular_characteristics = Column(Text)
     notes = Column(Text)
 
+    # Compound physicochemical properties
+    water_solubility = Column(String(100))   # 水溶性
+    log_p = Column(Float)                    # logP
+    bioavailability = Column(String(500))    # 生物利用度问题
+    natural_source = Column(Text)            # 天然来源
+
     # Compound classification
     compound_type = Column(String(100))
     molecular_weight = Column(Float)
@@ -116,6 +122,8 @@ class Assembly(Base):
     regulations = Column(Text)
 
     # Assembly process
+    is_single_component = Column(Boolean, default=True)  # 单组份自组装
+    assembly_components = Column(Text)                   # 具体组装成分
     component_count = Column(String(100))
     responsiveness = Column(String(200))
     surface_modification = Column(String(200))
