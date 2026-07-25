@@ -1,11 +1,14 @@
 from fastapi import FastAPI, Depends, Query, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response, PlainTextResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import io
 import os
-import shutil
-from datetime import datetime
+import uuid
+import zipfile
+from datetime import date, datetime
+from xml.etree import ElementTree as ET
 
 import openpyxl
 
@@ -14,7 +17,6 @@ from database import engine, Base, get_db, SessionLocal
 import crud
 import schemas
 import auth
-from models import VisitLog
 
 app = FastAPI(title="SUPRA API", description="Supramolecular Assembly Database API", version="0.2.0")
 
@@ -54,21 +56,25 @@ async def visit_log_middleware(request: Request, call_next):
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
-    # Migrate existing assemblies table: add view_count column if missing
+    os.makedirs(IMAGES_DIR, exist_ok=True)
+    # Migrate assemblies table for columns added post-launch
+    import sqlite3
+    import sys
+    db_path = os.path.join(os.path.dirname(__file__), "data", "dolphin.db")
     try:
-        import sqlite3
-        conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), "data", "dolphin.db"))
-        cols = [c[1] for c in conn.execute("PRAGMA table_info(assemblies)").fetchall()]
-        if "view_count" not in cols:
-            conn.execute("ALTER TABLE assemblies ADD COLUMN view_count INTEGER DEFAULT 0")
-        if "compound_type" not in cols:
-            conn.execute("ALTER TABLE assemblies ADD COLUMN compound_type VARCHAR(100)")
-        if "molecular_weight" not in cols:
-            conn.execute("ALTER TABLE assemblies ADD COLUMN molecular_weight FLOAT")
+        conn = sqlite3.connect(db_path)
+        cols = {c[1] for c in conn.execute("PRAGMA table_info(assemblies)").fetchall()}
+        for column, ddl in [
+            ("view_count", "INTEGER DEFAULT 0"),
+            ("compound_type", "VARCHAR(100)"),
+            ("molecular_weight", "FLOAT"),
+        ]:
+            if column not in cols:
+                conn.execute(f"ALTER TABLE assemblies ADD COLUMN {column} {ddl}")
         conn.commit()
         conn.close()
-    except Exception:
-        pass  # not SQLite or DB doesn't exist yet
+    except Exception as exc:
+        print(f"[startup] migration warning: {exc}", file=sys.stderr)
 
 
 @app.get("/api/health")
@@ -219,8 +225,6 @@ def create_assembly(data: schemas.AssemblyCreate, db: Session = Depends(get_db))
 
 
 IMAGES_DIR = os.path.join(os.path.dirname(__file__), "data", "images")
-os.makedirs(IMAGES_DIR, exist_ok=True)
-
 
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp"}
@@ -244,7 +248,6 @@ async def upload_image(file: UploadFile = File(...)):
     if len(contents) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail=f"File exceeds {MAX_IMAGE_BYTES // (1024*1024)} MB limit")
 
-    import uuid
     safe_name = f"{uuid.uuid4().hex}{ext}"
     dest = os.path.join(IMAGES_DIR, safe_name)
     with open(dest, "wb") as f:
@@ -285,8 +288,6 @@ async def batch_create_assemblies(file: UploadFile = File(...), db: Session = De
 
     # Fallback: extract directly from ZIP (fixes Linux openpyxl bug)
     if not row_images:
-        import zipfile
-        from xml.etree import ElementTree as ET
         with zipfile.ZipFile(io.BytesIO(contents)) as z:
             drawing_rels = {}
             rels_path = "xl/drawings/_rels/drawing1.xml.rels"
@@ -495,7 +496,6 @@ def delete_work_progress(wp_id: int, db: Session = Depends(get_db)):
 @app.get("/api/structure-image/{assembly_id}")
 def structure_image(assembly_id: int, db: Session = Depends(get_db)):
     """Generate a 2D chemical structure image from SMILES using RDKit."""
-    from fastapi.responses import Response
     a = crud.get_assembly_detail(db, assembly_id)
     if not a or not a.smiles:
         raise HTTPException(status_code=404, detail="No SMILES available")
@@ -503,7 +503,6 @@ def structure_image(assembly_id: int, db: Session = Depends(get_db)):
     try:
         from rdkit import Chem
         from rdkit.Chem.Draw import rdMolDraw2D
-        import io
 
         mol = Chem.MolFromSmiles(a.smiles)
         if mol is None:
@@ -527,7 +526,6 @@ def serve_upload(filepath: str):
     path = os.path.join(crud.UPLOAD_DIR, filepath)
     if not os.path.exists(path):
         raise HTTPException(status_code=404)
-    from fastapi.responses import FileResponse
     return FileResponse(path)
 
 
@@ -536,7 +534,6 @@ def serve_image(filepath: str):
     path = os.path.join(IMAGES_DIR, filepath)
     if not os.path.exists(path):
         raise HTTPException(status_code=404)
-    from fastapi.responses import FileResponse
     return FileResponse(path)
 
 
@@ -554,11 +551,15 @@ def admin_login(data: schemas.LoginRequest):
 def admin_visits(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
     db: Session = Depends(get_db),
 ):
-    total, results = crud.get_visits(db, page, page_size, date_from, date_to)
+    total, results = crud.get_visits(
+        db, page, page_size,
+        date_from.isoformat() if date_from else None,
+        date_to.isoformat() if date_to else None,
+    )
     items = [schemas.VisitLogOut.model_validate(r) for r in results]
     return schemas.VisitListResult(
         total=total, page=page, page_size=page_size, results=items,
@@ -567,20 +568,24 @@ def admin_visits(
 
 @app.get("/api/admin/stats", dependencies=[Depends(auth.require_admin)])
 def admin_stats(
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
     db: Session = Depends(get_db),
 ):
-    return crud.get_admin_stats(db, date_from, date_to)
+    return crud.get_admin_stats(
+        db,
+        date_from.isoformat() if date_from else None,
+        date_to.isoformat() if date_to else None,
+    )
 
 
 @app.get("/api/admin/trend", dependencies=[Depends(auth.require_admin)])
 def admin_trend(
-    date_from: str = Query(...),
-    date_to: str = Query(...),
+    date_from: date = Query(...),
+    date_to: date = Query(...),
     db: Session = Depends(get_db),
 ):
-    daily = crud.get_trend_data(db, date_from, date_to)
+    daily = crud.get_trend_data(db, date_from.isoformat(), date_to.isoformat())
     return schemas.TrendData(daily=daily)
 
 
@@ -592,7 +597,6 @@ def admin_top_molecules(n: int = Query(20, ge=1, le=100), db: Session = Depends(
 
 @app.get("/api/admin/export-visits", dependencies=[Depends(auth.require_admin)])
 def export_visits(db: Session = Depends(get_db)):
-    from fastapi.responses import PlainTextResponse
     csv_data = crud.export_visits_csv(db)
     return PlainTextResponse(
         content=csv_data,
@@ -603,7 +607,6 @@ def export_visits(db: Session = Depends(get_db)):
 
 @app.get("/api/admin/export-molecule-stats", dependencies=[Depends(auth.require_admin)])
 def export_molecule_stats(db: Session = Depends(get_db)):
-    from fastapi.responses import PlainTextResponse
     csv_data = crud.export_molecule_stats_csv(db)
     return PlainTextResponse(
         content=csv_data,

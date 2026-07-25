@@ -51,15 +51,6 @@ class Morphology(Base):
     assemblies = relationship("Assembly", back_populates="morphology")
 
 
-class CharacterizationMethod(Base):
-    __tablename__ = "characterization_methods"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(200), unique=True, nullable=False)
-    category = Column(String(100))
-
-    assemblies = relationship("Assembly", back_populates="characterization_method")
-
-
 class Property(Base):
     __tablename__ = "properties"
     id = Column(Integer, primary_key=True, index=True)
@@ -137,12 +128,10 @@ class Assembly(Base):
 
     building_block_id = Column(Integer, ForeignKey("building_blocks.id"))
     morphology_id = Column(Integer, ForeignKey("morphologies.id"))
-    characterization_method_id = Column(Integer, ForeignKey("characterization_methods.id"))
     assembly_drive_method_id = Column(Integer, ForeignKey("assembly_drive_methods.id"))
 
     building_block = relationship("BuildingBlock", back_populates="assemblies")
     morphology = relationship("Morphology", back_populates="assemblies")
-    characterization_method = relationship("CharacterizationMethod", back_populates="assemblies")
     assembly_drive_method = relationship("AssemblyDriveMethod", back_populates="assemblies")
     driving_forces = relationship("DrivingForce", secondary=assembly_driving_forces,
                                    back_populates="assemblies")

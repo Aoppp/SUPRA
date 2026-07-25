@@ -32,7 +32,6 @@ def get_assembly_detail(db: Session, assembly_id: int):
         .options(
             joinedload(Assembly.building_block),
             joinedload(Assembly.morphology),
-            joinedload(Assembly.characterization_method),
             joinedload(Assembly.assembly_drive_method),
             joinedload(Assembly.driving_forces),
             joinedload(Assembly.properties),
@@ -501,21 +500,21 @@ def _build_base_query(db: Session, params: SearchParams):
         query = query.filter(Assembly.compound_type == params.compound_type)
     if params.building_block:
         query = query.join(Assembly.building_block).filter(
-            BuildingBlock.name.ilike(f"%{params.building_block}%")
+            BuildingBlock.name == params.building_block
         )
     if params.morphology:
         query = query.join(Assembly.morphology).filter(
-            Morphology.name.ilike(f"%{params.morphology}%")
+            Morphology.name == params.morphology
         )
     if params.driving_force:
         query = query.join(Assembly.driving_forces).filter(
-            DrivingForce.name.ilike(f"%{params.driving_force}%")
+            DrivingForce.name == params.driving_force
         )
     if params.assembly_type:
-        query = query.filter(Assembly.assembly_type.ilike(f"%{params.assembly_type}%"))
+        query = query.filter(Assembly.assembly_type == params.assembly_type)
     if params.assembly_drive_method:
         query = query.join(Assembly.assembly_drive_method).filter(
-            AssemblyDriveMethod.name.ilike(f"%{params.assembly_drive_method}%")
+            AssemblyDriveMethod.name == params.assembly_drive_method
         )
     if params.is_cosmetic is not None:
         query = query.filter(Assembly.is_cosmetic == params.is_cosmetic)
